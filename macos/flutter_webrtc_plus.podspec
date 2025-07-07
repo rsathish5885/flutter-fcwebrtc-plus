@@ -26,7 +26,7 @@ A new flutter plugin project.
       rm -rf gpupixel.framework
     fi
     
-    curl -L -o frameworks.zip https://github.com/pixpark/gpupixel/releases/download/v0.3.1-beta.8/gpupixel_mac_Universal.zip
+    curl -L -o frameworks.zip https://github.com/pixpark/gpupixel/releases/download/v1.3.1/gpupixel_mac_Universal.zip
     unzip frameworks.zip
     mv lib/gpupixel.framework .
     rm -rf frameworks.zip bin lib models res include

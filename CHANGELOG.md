@@ -1,6 +1,10 @@
 
 # Changelog
 
+[0.14.1+5] - 2025-07-07
+
+* [Darwin] vendor: upgrade gpupixel version
+
 [0.14.1+4] - 2025-06-11
 
 * [Darwin] refactor: videopipe
