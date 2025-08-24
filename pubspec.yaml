@@ -25,6 +25,8 @@ dev_dependencies:
   pedantic: ^1.11.1
   test: any
 
+dependency_overrides: 
+
 flutter:
   plugin:
     platforms:
