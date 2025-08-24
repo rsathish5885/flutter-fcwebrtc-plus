@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:universal_io/io.dart';
 
+import '../native_logs_listener.dart';
+
 class WebRTC {
   static const MethodChannel _channel = MethodChannel('FlutterWebRTC.Method');
 
@@ -32,9 +34,9 @@ class WebRTC {
 
   static Future<T?> invokeMethod<T, P>(String methodName,
       [dynamic param]) async {
-    if (kIsWeb) return null;
-
-    await initialize();
+    await initialize(options: {
+      'logSeverity': NativeLogsListener.instance.severity,
+    });
 
     return _channel.invokeMethod<T>(
       methodName,

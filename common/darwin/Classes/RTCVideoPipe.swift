@@ -14,7 +14,7 @@ import WebRTC
     var virtualBackground: RTCVirtualBackground?
     var backgroundImage: CIImage?
     var lastFrameTimestamp: Int64 = 0
-    let targetFrameDurationNs: Int64 = Int64(1_000_000_000 / 15) // 15fps
+    let targetFrameDurationNs: Int64 = Int64(1_000_000_000 / 24) // 24fps
     weak var rtcVideoCapturer: RTCVideoCapturer?
     
     @objc public init(videoSource: RTCVideoSource, virtualBackground: RTCVirtualBackground) {

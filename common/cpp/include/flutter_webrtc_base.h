@@ -12,6 +12,7 @@
 #include "libwebrtc.h"
 
 #include "rtc_audio_device.h"
+#include "rtc_audio_processing.h"
 #include "rtc_desktop_device.h"
 #include "rtc_dtmf_sender.h"
 #include "rtc_media_stream.h"
@@ -46,13 +47,17 @@ class FlutterWebRTCBase {
   FlutterWebRTCBase(BinaryMessenger* messenger, TextureRegistrar* textures, TaskRunner* task_runner);
   ~FlutterWebRTCBase();
 
+  virtual scoped_refptr<RTCAudioProcessing> audio_processing() {
+    return audio_processing_;
+  }
+
+  virtual scoped_refptr<RTCMediaTrack> MediaTrackForId(const std::string& id);
+
   std::string GenerateUUID();
 
   RTCPeerConnection* PeerConnectionForId(const std::string& id);
 
   void RemovePeerConnectionForId(const std::string& id);
-
-  RTCMediaTrack* MediaTrackForId(const std::string& id);
 
   void RemoveMediaTrackForId(const std::string& id);
 
@@ -103,6 +108,7 @@ class FlutterWebRTCBase {
   scoped_refptr<RTCAudioDevice> audio_device_;
   scoped_refptr<RTCVideoDevice> video_device_;
   scoped_refptr<RTCDesktopDevice> desktop_device_;
+  scoped_refptr<RTCAudioProcessing> audio_processing_;
   RTCConfiguration configuration_;
 
   std::map<std::string, scoped_refptr<RTCPeerConnection>> peerconnections_;

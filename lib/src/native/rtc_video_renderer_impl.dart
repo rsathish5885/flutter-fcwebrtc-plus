@@ -10,10 +10,11 @@ import 'package:webrtc_interface_plus/webrtc_interface_plus.dart';
 
 // Project imports:
 import '../helper.dart';
+import '../video_renderer_extension.dart' show AudioControl;
 import 'utils.dart';
 
 class RTCVideoRenderer extends ValueNotifier<RTCVideoValue>
-    implements VideoRenderer {
+    implements VideoRenderer, AudioControl {
   RTCVideoRenderer() : super(RTCVideoValue.empty);
   Completer? _initializing;
   int? _textureId;
@@ -179,5 +180,19 @@ class RTCVideoRenderer extends ValueNotifier<RTCVideoValue>
       return false;
     }
     return true;
+  }
+
+  @override
+  Future<void> setVolume(double value) async {
+    try {
+      if (_srcObject == null) {
+        throw Exception('Can\'t set volume: The MediaStream is null');
+      }
+      for (MediaStreamTrack track in _srcObject!.getAudioTracks()) {
+        await Helper.setVolume(value, track);
+      }
+    } catch (e) {
+      print('Helper.setVolume ${e.toString()}');
+    }
   }
 }

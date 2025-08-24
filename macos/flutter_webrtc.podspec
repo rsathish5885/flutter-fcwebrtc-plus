@@ -3,7 +3,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'flutter_webrtc'
-  s.version          = '0.14.0'
+  s.version          = '1.1.0'
   s.summary          = 'Flutter WebRTC plugin for macOS.'
   s.description      = <<-DESC
 A new flutter plugin project.
@@ -15,6 +15,30 @@ A new flutter plugin project.
   s.source_files     = ['Classes/**/*']
 
   s.dependency 'FlutterMacOS'
-  s.dependency 'WebRTC-SDK', '125.6422.07'
-  s.osx.deployment_target = '10.14'
+  s.dependency 'WebRTC-SDK', '137.7151.03'
+  s.osx.deployment_target = '11.0'
+
+   s.prepare_command = <<-CMD
+    if [ -f "frameworks.zip" ]; then
+      rm frameworks.zip
+    fi
+    if [ -d "gpupixel.framework" ]; then
+      rm -rf gpupixel.framework
+    fi
+    
+    curl -L -o frameworks.zip https://github.com/pixpark/gpupixel/releases/download/v1.3.1/gpupixel_mac_Universal.zip
+    unzip frameworks.zip
+    mv lib/gpupixel.framework .
+    rm -rf frameworks.zip bin lib models res include
+  CMD
+
+  s.preserve_paths = 'gpupixel.framework'
+  s.vendored_frameworks = 'gpupixel.framework'
+  s.framework = 'AVFoundation', 'CoreMedia', 'gpupixel'
+
+  s.pod_target_xcconfig = { 
+    'DEFINES_MODULE' => 'YES',
+    'VALID_ARCHS[sdk=macosx*]' => 'arm64',
+    'EXCLUDED_ARCHS[sdk=macosx*]' => 'x86_64'
+  }
 end
