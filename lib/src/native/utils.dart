@@ -34,6 +34,8 @@ class WebRTC {
 
   static Future<T?> invokeMethod<T, P>(String methodName,
       [dynamic param]) async {
+    if (kIsWeb) return null;
+
     await initialize(options: {
       'logSeverity': NativeLogsListener.instance.severity,
     });
