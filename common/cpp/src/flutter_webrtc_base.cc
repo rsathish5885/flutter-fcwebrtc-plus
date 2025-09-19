@@ -3,6 +3,8 @@
 #include "flutter_data_channel.h"
 #include "flutter_peerconnection.h"
 
+#include "helper.h"
+
 namespace flutter_webrtc_plus_plugin {
 
 const char* kEventChannelName = "FlutterWebRTC.Event";
@@ -88,8 +90,7 @@ void FlutterWebRTCBase::RemovePeerConnectionObserversForId(
 }
 
 scoped_refptr<RTCMediaStream> FlutterWebRTCBase::MediaStreamForId(
-    const std::string& id,
-    std::string ownerTag) {
+    const std::string& id, std::string ownerTag) {
   if (!ownerTag.empty()) {
     if (ownerTag == "local") {
       auto it = local_streams_.find(id);
@@ -349,7 +350,8 @@ FlutterWebRTCBase::GetRtpSenderById(RTCPeerConnection* pc, std::string id) {
 }
 
 libwebrtc::scoped_refptr<libwebrtc::RTCRtpReceiver>
-FlutterWebRTCBase::GetRtpReceiverById(RTCPeerConnection* pc, std::string id) {
+FlutterWebRTCBase::GetRtpReceiverById(RTCPeerConnection* pc,
+                                          std::string id) {
   libwebrtc::scoped_refptr<libwebrtc::RTCRtpReceiver> result;
   auto receivers = pc->receivers();
   for (scoped_refptr<RTCRtpReceiver> item : receivers.std_vector()) {

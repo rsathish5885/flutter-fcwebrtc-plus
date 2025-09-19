@@ -21,6 +21,6 @@ class TaskRunnerLinux : public TaskRunner {
   std::queue<TaskClosure> tasks_;
 };
 
-}  // namespace flutter_webrtc_plugin
+}  // namespace flutter_webrtc_plus_plugin
 
 #endif  // PACKAGES_FLUTTER_WEBRTC_LINUX_TASK_RUNNER_LINUX_H_

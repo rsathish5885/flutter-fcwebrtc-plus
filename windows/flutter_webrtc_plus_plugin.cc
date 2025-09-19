@@ -7,7 +7,7 @@
 #include <flutter/plugin_registrar_windows.h>
 
 const char* kChannelName = "FlutterWebRTC.Method";
-static flutter_webrtc_plugin::FlutterWebRTC* g_shared_instance = nullptr;
+static flutter_webrtc_plus_plugin::FlutterWebRTC* g_shared_instance = nullptr;
 
 namespace flutter_webrtc_plus_plugin {
 
@@ -69,7 +69,7 @@ class FlutterWebRTCPluginImpl : public FlutterWebRTCPlugin {
   std::unique_ptr<TaskRunner> task_runner_;
 };
 
-}  // namespace flutter_webrtc_plugin
+}  // namespace flutter_webrtc_plus_plugin
 
 
 void FlutterWebRTCPluginRegisterWithRegistrar(
@@ -79,6 +79,6 @@ void FlutterWebRTCPluginRegisterWithRegistrar(
           ->GetRegistrar<flutter::PluginRegistrarWindows>(registrar));
 }
 
-flutter_webrtc_plugin::FlutterWebRTC* FlutterWebRTCPluginSharedInstance() {
+flutter_webrtc_plus_plugin::FlutterWebRTC* FlutterWebRTCPluginSharedInstance() {
   return g_shared_instance;
 } 

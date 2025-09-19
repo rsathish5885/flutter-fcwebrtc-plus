@@ -10,9 +10,9 @@ G_BEGIN_DECLS
 #define FLUTTER_PLUGIN_EXPORT
 #endif
 
-namespace flutter_webrtc_plugin {
+namespace flutter_webrtc_plus_plugin {
 class FlutterWebRTC;
-}  // namespace flutter_webrtc_plugin
+}  // namespace flutter_webrtc_plus_plugin
 
 typedef struct _FlutterWebrtcPlugin FlutterWebrtcPlugin;
 typedef struct {
@@ -24,7 +24,7 @@ FLUTTER_PLUGIN_EXPORT GType flutter_webrtc_plugin_get_type();
 FLUTTER_PLUGIN_EXPORT void flutter_web_r_t_c_plugin_register_with_registrar(
     FlPluginRegistrar* registrar);
 
-FLUTTER_PLUGIN_EXPORT flutter_webrtc_plugin::FlutterWebRTC* flutter_webrtc_plugin_get_shared_instance();
+FLUTTER_PLUGIN_EXPORT flutter_webrtc_plus_plugin::FlutterWebRTC* flutter_webrtc_plugin_get_shared_instance();
 
 G_END_DECLS
 

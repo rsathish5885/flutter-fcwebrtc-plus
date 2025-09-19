@@ -1274,9 +1274,6 @@ void FlutterWebRTC::HandleMethodCall(
     state[EncodableValue("state")] =
         peerConnectionStateString(pc->peer_connection_state());
     result->Success(EncodableValue(state));
-  } else if (method_call.method_name().compare("setThinValue") == 0) {
-    if (!method_call.arguments()) {
-      result->Error("Bad Arguments", "Null constraints arguments received");
   } else if (method_call.method_name().compare("setLogSeverity") == 0) {
     if (!method_call.arguments()) {
       result->Error("Bad Arguments", "Bad arguments received");
@@ -1284,10 +1281,22 @@ void FlutterWebRTC::HandleMethodCall(
     }
     const EncodableMap params =
         GetValue<EncodableMap>(*method_call.arguments());
+    std::string severityStr = findString(params, "severity");
+    if (severityStr.empty() == false) {
+      RTCLoggingSeverity severity = str2LogSeverity(severityStr);
+      initLoggerCallback(severity);
+    }
+  } else if (method_call.method_name().compare("setThinValue") == 0) {
+    if (!method_call.arguments()) {
+      result->Error("Bad Arguments", "Null constraints arguments received");
+      return;
+    }
+    const EncodableMap params =
+        GetValue<EncodableMap>(*method_call.arguments());
     const double value = findDouble(params, "value");
     SetThinFaceValue(value);
     result->Success();
-  } else if (method_call.method_name().compare("setBigEyeValue") == 0) {
+  }  else if (method_call.method_name().compare("setBigEyeValue") == 0) {
     if (!method_call.arguments()) {
       result->Error("Bad Arguments", "Null constraints arguments received");
       return;
@@ -1374,4 +1383,4 @@ RTCLoggingSeverity FlutterWebRTC::str2LogSeverity(std::string str) {
   return None;
 }
 
-}  // namespace flutter_webrtc_plugin
+}  // namespace flutter_webrtc_plus_plugin

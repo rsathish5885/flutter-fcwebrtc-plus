@@ -22,8 +22,6 @@
 #include "rtc_peerconnection_factory.h"
 #include "rtc_video_device.h"
 
-#include "uuidxx.h"
-
 namespace flutter_webrtc_plus_plugin {
 
 using namespace libwebrtc;
@@ -86,6 +84,7 @@ class FlutterWebRTCBase {
   void RemoveTracksForId(const std::string& id);
 
   EventChannelProxy* event_channel();
+
 
   libwebrtc::scoped_refptr<libwebrtc::RTCRtpSender> GetRtpSenderById(
       RTCPeerConnection* pc,

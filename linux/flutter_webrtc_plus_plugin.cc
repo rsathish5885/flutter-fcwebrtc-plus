@@ -5,7 +5,7 @@
 #include "task_runner_linux.h"
 
 const char* kChannelName = "FlutterWebRTC.Method";
-static flutter_webrtc_plugin::FlutterWebRTC* g_shared_instance = nullptr;
+static flutter_webrtc_plus_plugin::FlutterWebRTC* g_shared_instance = nullptr;
 //#if defined(_WINDOWS)
 
 namespace flutter_webrtc_plus_plugin {
@@ -69,7 +69,7 @@ class FlutterWebRTCPluginImpl : public FlutterWebRTCPlugin {
   std::unique_ptr<TaskRunner> task_runner_;
 };
 
-}  // namespace flutter_webrtc_plugin
+}  // namespace flutter_webrtc_plus_plugin
 
 void flutter_web_r_t_c_plugin_register_with_registrar(
     FlPluginRegistrar* registrar) {
@@ -78,6 +78,6 @@ void flutter_web_r_t_c_plugin_register_with_registrar(
       plugin_registrar);
 }
 
-flutter_webrtc_plugin::FlutterWebRTC* flutter_webrtc_plugin_get_shared_instance() {
+flutter_webrtc_plus_plugin::FlutterWebRTC* flutter_webrtc_plus_plugin_get_shared_instance() {
   return g_shared_instance;
 } 

@@ -7,7 +7,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
 endif()
 
 # Add the libwebrtc dependency
-include("${CMAKE_CURRENT_SOURCE_DIR}/../third_party/CMakeLists.txt")
+include("${CMAKE_CURRENT_SOURCE_DIR}/../third_party/lib/CMakeLists.txt")
 
 # This value is used when generating builds using this plugin, so it must
 # not be changed
@@ -44,7 +44,6 @@ add_library(${PLUGIN_NAME} SHARED
   "../common/cpp/src/flutter_screen_capture.cc"
   "../common/cpp/src/flutter_webrtc.cc"
   "../common/cpp/src/flutter_webrtc_base.cc"
-  "../third_party/uuidxx/uuidxx.cc"
   "flutter_webrtc_plus_plugin.cc"
   "task_runner_windows.cc"
 )

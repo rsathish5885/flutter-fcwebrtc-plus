@@ -58,3 +58,5 @@ ios/*.framework
 
 third_party/libwebrtc/lib/elinux-arm64
 third_party/libwebrtc/lib/elinux-x64
+third_party/downloads
+third_party/libwebrtc
