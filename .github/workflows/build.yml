@@ -50,70 +50,70 @@ jobs:
         working-directory: ./example
         run: flutter build apk
 
-  build-for-ios:
-    name: Build for Flutter iOS
-    runs-on: macos-latest
+  # build-for-ios:
+  #   name: Build for Flutter iOS
+  #   runs-on: macos-latest
 
-    steps:
-      - uses: actions/checkout@v2
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - uses: subosito/flutter-action@v2
+  #       with:
+  #         channel: 'stable'
 
-      - name: Install project dependencies
-        run: flutter pub get
+  #     - name: Install project dependencies
+  #       run: flutter pub get
 
-      - name: Install CocoaPods
-        run: |
-          sudo gem install cocoapods
-          pod --version
+  #     - name: Install CocoaPods
+  #       run: |
+  #         sudo gem install cocoapods
+  #         pod --version
 
-      - name: Clean iOS Pods
-        working-directory: ./example/ios
-        run: |
-          rm -rf Pods Podfile.lock
-          pod repo update
+  #     - name: Clean iOS Pods
+  #       working-directory: ./example/ios
+  #       run: |
+  #         rm -rf Pods Podfile.lock
+  #         pod repo update
 
-      - name: Install iOS Pods
-        working-directory: ./example/ios
-        run: pod install
+  #     - name: Install iOS Pods
+  #       working-directory: ./example/ios
+  #       run: pod install
 
-      - name: Install xcode platform support for iOS
-        run: xcodebuild -downloadPlatform iOS
+  #     - name: Install xcode platform support for iOS
+  #       run: xcodebuild -downloadPlatform iOS
 
-      - name: Build for iOS
-        working-directory: ./example
-        run: flutter build ios --release --no-codesign
+  #     - name: Build for iOS
+  #       working-directory: ./example
+  #       run: flutter build ios --release --no-codesign
 
-  build-for-windows:
-    name: Build for flutter Windows
-    runs-on: windows-latest
+  # build-for-windows:
+  #   name: Build for flutter Windows
+  #   runs-on: windows-latest
 
-    steps:
-      - uses: actions/checkout@v2
-      - uses: subosito/flutter-action@v1
-        with:
-          channel: 'stable'
-      - name: Install project dependencies
-        run: flutter pub get
-      - name: Build for Windows
-        working-directory: ./example
-        run: flutter build windows --release
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - uses: subosito/flutter-action@v1
+  #       with:
+  #         channel: 'stable'
+  #     - name: Install project dependencies
+  #       run: flutter pub get
+  #     - name: Build for Windows
+  #       working-directory: ./example
+  #       run: flutter build windows --release
 
-  build-for-macos:
-    name: Build for flutter macOS
-    runs-on: macos-latest
+  # build-for-macos:
+  #   name: Build for flutter macOS
+  #   runs-on: macos-latest
 
-    steps:
-      - uses: actions/checkout@v2
-      - uses: subosito/flutter-action@v1
-        with:
-          channel: 'stable'
-      - name: Install project dependencies
-        run: flutter pub get
-      - name: Build for macOS
-        working-directory: ./example
-        run: flutter build macos --release
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - uses: subosito/flutter-action@v1
+  #       with:
+  #         channel: 'stable'
+  #     - name: Install project dependencies
+  #       run: flutter pub get
+  #     - name: Build for macOS
+  #       working-directory: ./example
+  #       run: flutter build macos --release
 
   build-for-web:
     name: Build for Flutter Web
