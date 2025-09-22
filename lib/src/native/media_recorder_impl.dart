@@ -3,7 +3,7 @@ import 'dart:async';
 import 'dart:math';
 
 // Package imports:
-import 'package:webrtc_interface_plus/webrtc_interface_plus.dart';
+import 'package:webrtc_interface/webrtc_interface.dart';
 
 // Project imports:
 import 'media_stream_track_impl.dart';

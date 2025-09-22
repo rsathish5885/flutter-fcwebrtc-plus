@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 // Package imports:
-import 'package:webrtc_interface_plus/webrtc_interface_plus.dart';
+import 'package:webrtc_interface/webrtc_interface.dart';
 
 // Project imports:
 import 'media_stream_track_impl.dart';

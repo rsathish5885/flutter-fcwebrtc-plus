@@ -1,9 +1,11 @@
 
 # Changelog
 
-[1.1.0+1] - 2025-08-25
+[1.2.0] - 2025-09-13
 
-* [Feat] Merge from origin flutter_webrtc
+* [Android] upgrade compileSdk to 36 as standard for 16kb pages support (#1925)
+* [Apple/Android] Local recording API for Darwin and Android (#1880)
+* [Apple/Android] Data Packet Cryptor Support.
 
 [1.1.0] - 2025-08-20
 

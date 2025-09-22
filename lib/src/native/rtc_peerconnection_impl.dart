@@ -5,7 +5,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 
 // Package imports:
-import 'package:webrtc_interface_plus/webrtc_interface_plus.dart';
+import 'package:webrtc_interface/webrtc_interface.dart';
 
 // Project imports:
 import 'media_stream_impl.dart';
@@ -623,7 +623,4 @@ class RTCPeerConnectionNative extends RTCPeerConnection {
       throw 'Unable to RTCPeerConnection::addTransceiver: ${e.message}';
     }
   }
-
-  @override
-  String get peerConnectionId => _peerConnectionId;
 }

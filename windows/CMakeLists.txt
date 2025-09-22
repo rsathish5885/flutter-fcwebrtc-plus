@@ -9,6 +9,13 @@ endif()
 # Add the libwebrtc dependency
 include("${CMAKE_CURRENT_SOURCE_DIR}/../third_party/lib/CMakeLists.txt")
 
+if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
+  cmake_policy(SET CMP0135 NEW)
+endif()
+
+# Add the libwebrtc dependency
+include("${CMAKE_CURRENT_SOURCE_DIR}/../third_party/CMakeLists.txt")
+
 # This value is used when generating builds using this plugin, so it must
 # not be changed
 set(PLUGIN_NAME "flutter_webrtc_plus_plugin")

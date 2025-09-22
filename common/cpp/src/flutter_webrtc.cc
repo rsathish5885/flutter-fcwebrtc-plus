@@ -7,6 +7,8 @@ namespace flutter_webrtc_plus_plugin {
 
 static EventChannelProxy* eventChannelProxy = nullptr;
 
+static EventChannelProxy* eventChannelProxy = nullptr;
+
 FlutterWebRTC::FlutterWebRTC(FlutterWebRTCPlugin* plugin)
     : FlutterWebRTCBase::FlutterWebRTCBase(plugin->messenger(),
                                            plugin->textures(),
