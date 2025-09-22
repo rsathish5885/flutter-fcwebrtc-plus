@@ -3,6 +3,8 @@
 #include "flutter_data_channel.h"
 #include "flutter_peerconnection.h"
 
+#include "helper.h"
+
 namespace flutter_webrtc_plus_plugin {
 
 const char* kEventChannelName = "FlutterWebRTC.Event";
@@ -16,6 +18,7 @@ FlutterWebRTCBase::FlutterWebRTCBase(BinaryMessenger* messenger,
   audio_device_ = factory_->GetAudioDevice();
   video_device_ = factory_->GetVideoDevice();
   desktop_device_ = factory_->GetDesktopDevice();
+  audio_processing_ = factory_->GetAudioProcessing();
   event_channel_ = EventChannelProxy::Create(messenger_, task_runner_, kEventChannelName);
 }
 
@@ -28,7 +31,7 @@ EventChannelProxy* FlutterWebRTCBase::event_channel() {
 }
 
 std::string FlutterWebRTCBase::GenerateUUID() {
-  return uuidxx::uuid::Generate().ToString(false);
+  return libwebrtc::Helper::CreateRandomUuid().std_string();
 }
 
 RTCPeerConnection* FlutterWebRTCBase::PeerConnectionForId(
@@ -47,11 +50,11 @@ void FlutterWebRTCBase::RemovePeerConnectionForId(const std::string& id) {
     peerconnections_.erase(it);
 }
 
-RTCMediaTrack* FlutterWebRTCBase ::MediaTrackForId(const std::string& id) {
+scoped_refptr<RTCMediaTrack> FlutterWebRTCBase ::MediaTrackForId(const std::string& id) {
   auto it = local_tracks_.find(id);
 
   if (it != local_tracks_.end())
-    return (*it).second.get();
+    return (*it).second;
 
   for (auto kv : peerconnection_observers_) {
     auto pco = kv.second.get();
@@ -87,8 +90,7 @@ void FlutterWebRTCBase::RemovePeerConnectionObserversForId(
 }
 
 scoped_refptr<RTCMediaStream> FlutterWebRTCBase::MediaStreamForId(
-    const std::string& id,
-    std::string ownerTag) {
+    const std::string& id, std::string ownerTag) {
   if (!ownerTag.empty()) {
     if (ownerTag == "local") {
       auto it = local_streams_.find(id);
@@ -348,7 +350,8 @@ FlutterWebRTCBase::GetRtpSenderById(RTCPeerConnection* pc, std::string id) {
 }
 
 libwebrtc::scoped_refptr<libwebrtc::RTCRtpReceiver>
-FlutterWebRTCBase::GetRtpReceiverById(RTCPeerConnection* pc, std::string id) {
+FlutterWebRTCBase::GetRtpReceiverById(RTCPeerConnection* pc,
+                                          std::string id) {
   libwebrtc::scoped_refptr<libwebrtc::RTCRtpReceiver> result;
   auto receivers = pc->receivers();
   for (scoped_refptr<RTCRtpReceiver> item : receivers.std_vector()) {

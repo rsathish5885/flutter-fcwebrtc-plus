@@ -50,6 +50,6 @@
    TaskRunnerWindows(TaskRunnerWindows const&) = delete;
    TaskRunnerWindows& operator=(TaskRunnerWindows const&) = delete;
  };
- }  // namespace flutter_webrtc_plugin
+ }  // namespace flutter_webrtc_plus_plugin
  
  #endif  // PACKAGES_FLUTTER_WEBRTC_WINDOWS_TASK_RUNNER_WINDOW_H_

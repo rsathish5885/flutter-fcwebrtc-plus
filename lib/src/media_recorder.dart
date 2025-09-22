@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import 'package:webrtc_interface_plus/webrtc_interface_plus.dart' as rtc;
+import 'package:webrtc_interface/webrtc_interface.dart' as rtc;
 
 import '../flutter_webrtc_plus.dart';
 import 'native/media_recorder_impl.dart' show MediaRecorderNative;

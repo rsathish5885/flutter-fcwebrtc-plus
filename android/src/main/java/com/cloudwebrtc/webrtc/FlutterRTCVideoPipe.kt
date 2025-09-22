@@ -37,7 +37,7 @@ class FlutterRTCVideoPipe: LocalVideoTrack.ExternalVideoFrameProcessing {
     private var sink: VideoSink? = null
     private val bitmapMap = HashMap<Long, CacheFrame>()
     private var lastProcessedFrameTime: Long = 0
-    private val targetFrameInterval: Long = 1000 / 15 // 15 FPS
+    private val targetFrameInterval: Long = 1000 / 24 // 24 FPS
     private var virtualBackground: FlutterRTCVirtualBackground? = null
     private var beautyFilters: FlutterRTCBeautyFilters? = null
 
@@ -202,7 +202,7 @@ class FlutterRTCVideoPipe: LocalVideoTrack.ExternalVideoFrameProcessing {
 
     private fun emitBitmapOnFrame(bitmap: Bitmap) {
         // Reduce the resolution of the bitmap
-        var outputBitmap = bitmap.copy(bitmap.config, true)
+        var outputBitmap = bitmap.copy(bitmap.config!!, true)
 
         val matrix = Matrix()
         outputBitmap = Bitmap.createBitmap(outputBitmap, 0, 0, outputBitmap.width, outputBitmap.height, matrix, true)
