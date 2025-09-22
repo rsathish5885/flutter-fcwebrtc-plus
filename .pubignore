@@ -13,3 +13,5 @@ third_party/gpupixel/res
 third_party/gpupixel/lib/windows/gpupixel.exp
 third_party/vnn/libs/windows/x86
 third_party/libwebrtc
+third_party/lib/libwebrtc
+third_party/lib/downloads
