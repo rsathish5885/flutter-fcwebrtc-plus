@@ -60,4 +60,8 @@ third_party/libwebrtc/lib/elinux-arm64
 third_party/libwebrtc/lib/elinux-x64
 third_party/downloads
 third_party/libwebrtc
+third_party/lib/libwebrtc
+third_party/lib/downloads
 build/
+third_party/lib/libwebrtc/
+third_party/lib/downloads/
