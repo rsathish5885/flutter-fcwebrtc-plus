@@ -1,6 +1,10 @@
 
 # Changelog
 
+[1.2.0+1] - 2025-09-22
+
+* Update .
+
 [1.2.0] - 2025-09-13
 
 * [Android] upgrade compileSdk to 36 as standard for 16kb pages support (#1925)
