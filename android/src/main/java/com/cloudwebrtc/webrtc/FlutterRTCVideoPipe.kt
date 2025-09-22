@@ -202,7 +202,7 @@ class FlutterRTCVideoPipe: LocalVideoTrack.ExternalVideoFrameProcessing {
 
     private fun emitBitmapOnFrame(bitmap: Bitmap) {
         // Reduce the resolution of the bitmap
-        var outputBitmap = bitmap.copy(bitmap.config, true)
+        var outputBitmap = bitmap.copy(bitmap.config!!, true)
 
         val matrix = Matrix()
         outputBitmap = Bitmap.createBitmap(outputBitmap, 0, 0, outputBitmap.width, outputBitmap.height, matrix, true)

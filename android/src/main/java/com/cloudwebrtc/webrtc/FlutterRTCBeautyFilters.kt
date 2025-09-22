@@ -75,7 +75,7 @@ class FlutterRTCBeautyFilters(context: Context) {
         }
 
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        bitmap.setPixels(argbPixels, 0, width, 0, 0, width, height)
+        bitmap.setPixels(argbPixels!!, 0, width, 0, 0, width, height)
         return bitmap
     }
 
@@ -166,11 +166,11 @@ class FlutterRTCBeautyFilters(context: Context) {
 
         // Get pixels directly without copying bitmap
         if (bitmap.config == Bitmap.Config.ARGB_8888) {
-            bitmap.getPixels(argbPixels, 0, width, 0, 0, width, height)
+            bitmap.getPixels(argbPixels!!, 0, width, 0, 0, width, height)
         } else {
             // Only copy if format is different
             val argbBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, false)
-            argbBitmap.getPixels(argbPixels, 0, width, 0, 0, width, height)
+            argbBitmap.getPixels(argbPixels!!, 0, width, 0, 0, width, height)
         }
 
         // Convert ARGB to RGBA in place
