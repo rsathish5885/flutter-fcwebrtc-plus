@@ -4,10 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.ImageFormat
-import android.graphics.Matrix
-import android.graphics.Rect
-import android.graphics.YuvImage
 import android.os.Build
 import android.os.SystemClock
 import android.util.Log
@@ -21,14 +17,13 @@ import com.google.android.gms.tflite.java.TfLite
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import org.webrtc.JavaI420Buffer
 import org.webrtc.VideoFrame
-import org.webrtc.VideoProcessor
 import org.webrtc.VideoSink
-import org.webrtc.VideoSource
 import org.webrtc.YuvHelper
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 
-class FlutterRTCVideoPipe: LocalVideoTrack.ExternalVideoFrameProcessing {
+class FlutterRTCVideoPipe : LocalVideoTrack.ExternalVideoFrameProcessing {
+
     var isGpuSupported = false
     private val tag: String = "[FlutterRTC-VideoPipe]"
     private var backgroundBitmap: Bitmap? = null
@@ -42,33 +37,23 @@ class FlutterRTCVideoPipe: LocalVideoTrack.ExternalVideoFrameProcessing {
     private var beautyFilters: FlutterRTCBeautyFilters? = null
 
     fun initialize(context: Context) {
+        val appContext = context.applicationContext
         Log.d(tag, "Initialized")
-//        this.videoSource = videoSource
         this.virtualBackground = FlutterRTCVirtualBackground()
 
         if (this.beautyFilters == null) {
-            this.beautyFilters = FlutterRTCBeautyFilters(context)
+            this.beautyFilters = FlutterRTCBeautyFilters(appContext)
         }
 
-        // Enable GPU
-        val useGpuTask = TfLiteGpu.isGpuDelegateAvailable(context)
-
-        useGpuTask.continueWith { resultUseGpu ->
-            if (resultUseGpu.result) {
-                isGpuSupported = true
-                TfLite.initialize(context,
-                    TfLiteInitializationOptions.builder()
-                        .setEnableGpuDelegateSupport(resultUseGpu.result)
-                        .build())
-            }
-        }
-
+        // MediaPipe ImageSegmenter manages its own native libraries and delegates.
+        // We use DELEGATE_GPU by default in ImageSegmenterHelper; if it fails, 
+        // it falls back to CPU or throws a RuntimeException which we catch.
         this.imageSegmentationHelper = ImageSegmenterHelper(
-            context = context,
+            context = appContext,
             runningMode = RunningMode.LIVE_STREAM,
             imageSegmenterListener = object : ImageSegmenterHelper.SegmenterListener {
                 override fun onError(error: String, errorCode: Int) {
-                    // no-op
+                    Log.e(tag, "ImageSegmenter error: $error (code: $errorCode)")
                 }
 
                 override fun onResults(resultBundle: ImageSegmenterHelper.ResultBundle) {
@@ -78,33 +63,17 @@ class FlutterRTCVideoPipe: LocalVideoTrack.ExternalVideoFrameProcessing {
                     val maskFloat = resultBundle.results
                     val maskWidth = resultBundle.width
                     val maskHeight = resultBundle.height
-
                     val bitmap = cacheFrame.originalBitmap
                     val mask = virtualBackground?.convertFloatBufferToByteBuffer(maskFloat)
-
-                    // Convert the buffer to an array of colors
                     val colors = virtualBackground?.maskColorsFromByteBuffer(
-                        mask!!,
-                        maskWidth,
-                        maskHeight,
-                        bitmap,
-                        expectConfidence,
+                        mask!!, maskWidth, maskHeight, bitmap, expectConfidence
                     )
-
-                    // Create the segmented bitmap from the color array
                     val segmentedBitmap = virtualBackground?.createBitmapFromColors(colors!!, bitmap.width, bitmap.height)
 
-                    if (backgroundBitmap == null) {
-                        // If the background bitmap is null, return without further processing
-                        return
-                    }
+                    if (backgroundBitmap == null) return
 
-                    // Draw the segmented bitmap on top of the background for human segments
                     val outputBitmap = virtualBackground?.drawSegmentedBackground(segmentedBitmap, backgroundBitmap)
-
-                    if (outputBitmap != null) {
-                        emitBitmapOnFrame(outputBitmap)
-                    }
+                    if (outputBitmap != null) emitBitmapOnFrame(outputBitmap)
 
                     bitmapMap.remove(timestampMS)
                 }
@@ -117,9 +86,20 @@ class FlutterRTCVideoPipe: LocalVideoTrack.ExternalVideoFrameProcessing {
         this.bitmapMap.clear()
         this.backgroundBitmap = null
         this.imageSegmentationHelper = null
-        this.backgroundBitmap = null
         this.virtualBackground = null
+        this.beautyFilters?.release()
+        this.beautyFilters = null
         resetBackground()
+    }
+
+    /**
+     * Explicitly destroy the FaceUnity engine and global SDK state.
+     * Use this when switching between multiple SDK integrations (e.g. NERtc and WebRTC).
+     */
+    fun releaseBeautyEngine() {
+        Log.i(tag, "Manually releasing FaceUnity engine and SDK state")
+        this.beautyFilters?.release()
+        this.beautyFilters = null
     }
 
     fun resetBackground() {
@@ -131,135 +111,98 @@ class FlutterRTCVideoPipe: LocalVideoTrack.ExternalVideoFrameProcessing {
         expectConfidence = confidence
     }
 
-    /**
-     * Convert a VideoFrame to a Bitmap for further processing.
-     *
-     * @param videoFrame The input VideoFrame to be converted.
-     * @return The corresponding Bitmap representation of the VideoFrame.
-     */
-    private fun videoFrameToBitmap(videoFrame: VideoFrame): Bitmap? {
-        try {
-            // Retain the VideoFrame to prevent it from being garbage collected
-            videoFrame.retain()
+    // ─────────────────────── Beauty parameter setters ──────────────────────
 
-            // Convert the VideoFrame to I420 format
+    fun setThinValue(value: Float) = beautyFilters?.setThinValue(value) ?: Unit
+    fun setBigEyesValue(value: Float) = beautyFilters?.setBigEyesValue(value) ?: Unit
+    fun setBeautyValue(value: Float) = beautyFilters?.setBeautyValue(value) ?: Unit
+    fun setLipstickValue(value: Float) = beautyFilters?.setLipstickValue(value) ?: Unit
+    fun setWhiteValue(value: Float) = beautyFilters?.setWhiteValue(value) ?: Unit
+    fun setEyeBrightValue(value: Float) = beautyFilters?.setEyeBrightValue(value) ?: Unit
+    fun setFilterName(name: String) = beautyFilters?.setFilterName(name) ?: Unit
+    fun setFilterLevel(value: Float) = beautyFilters?.setFilterLevel(value) ?: Unit
+
+    // ────────────────────── VideoFrame → NV21 (no JPEG) ───────────────────
+
+    /**
+     * Convert a WebRTC VideoFrame directly to an NV21 byte array.
+     * This avoids the JPEG encode/decode that was the primary performance bottleneck
+     * in the previous GPUPixel-based implementation.
+     */
+    private fun videoFrameToNV21(videoFrame: VideoFrame): ByteArray? {
+        return try {
+            videoFrame.retain()
             val buffer = videoFrame.buffer
-            val i420Buffer = buffer.toI420() ?: return null // Handle null case
-            val y = i420Buffer.dataY
-            val u = i420Buffer.dataU
-            val v = i420Buffer.dataV
+            val i420Buffer = buffer.toI420() ?: return null
+
             val width = i420Buffer.width
             val height = i420Buffer.height
-            val strides = intArrayOf(
-                i420Buffer.strideY,
-                i420Buffer.strideU,
-                i420Buffer.strideV
-            )
+            val nv21Size = width * height * 3 / 2
+            val nv21 = ByteArray(nv21Size)
 
-            // Convert I420 format to NV12 format as required by YuvImage
-            val yuvBuffer = ByteBuffer.allocateDirect(width * height * 3 / 2)
-            YuvHelper.I420ToNV12(
-                y,
-                strides[0],
-                v,
-                strides[2],
-                u,
-                strides[1],
-                yuvBuffer,
-                width,
-                height
-            )
+            // Y plane — copy directly
+            val yBuffer = i420Buffer.dataY
+            val yStride = i420Buffer.strideY
+            var yDst = 0
+            for (row in 0 until height) {
+                yBuffer.position(row * yStride)
+                yBuffer.get(nv21, yDst, width)
+                yDst += width
+            }
 
-            // Convert YuvImage to Bitmap
-            val yuvImage = YuvImage(
-                yuvBuffer.array(),
-                ImageFormat.NV21,  // NV21 is compatible with NV12 for BitmapFactory
-                width,
-                height,
-                null
-            )
+            // U/V planes → interleaved VU for NV21
+            val uBuffer = i420Buffer.dataU
+            val vBuffer = i420Buffer.dataV
+            val uStride = i420Buffer.strideU
+            val vStride = i420Buffer.strideV
+            var uvDst = width * height
+            val uvHeight = height / 2
+            val uvWidth = width / 2
+            for (row in 0 until uvHeight) {
+                uBuffer.position(row * uStride)
+                vBuffer.position(row * vStride)
+                for (col in 0 until uvWidth) {
+                    nv21[uvDst++] = vBuffer.get() // V first in NV21
+                    nv21[uvDst++] = uBuffer.get()
+                }
+            }
 
-            val outputStream = ByteArrayOutputStream()
-            yuvImage.compressToJpeg(
-                Rect(0, 0, width, height),
-                85,
-                outputStream
-            )
-            val jpegData = outputStream.toByteArray()
-
-            // Release resources
             i420Buffer.release()
             videoFrame.release()
-
-            // Convert byte array to Bitmap
-            return BitmapFactory.decodeByteArray(jpegData, 0, jpegData.size)
+            nv21
         } catch (e: Exception) {
-            // Handle any exceptions and return null
             e.printStackTrace()
-            return null
+            null
         }
     }
 
-    private fun emitBitmapOnFrame(bitmap: Bitmap) {
-        // Reduce the resolution of the bitmap
-        var outputBitmap = bitmap.copy(bitmap.config!!, true)
+    // ───────────────────── NV21 → VideoFrame ──────────────────────────────
 
-        val matrix = Matrix()
-        outputBitmap = Bitmap.createBitmap(outputBitmap, 0, 0, outputBitmap.width, outputBitmap.height, matrix, true)
-
-        val frame = convertBitmapToVideoFrame(outputBitmap)
-
-        sink?.onFrame(frame)
-    }
-
-    private fun convertBitmapToVideoFrame(bitmap: Bitmap): VideoFrame? {
-        // Create the buffer for the video frame
-        val width = bitmap.width
-        val height = bitmap.height
-
-        // Calculate the size of the Y, U, and V buffers
+    private fun convertNV21ToVideoFrame(nv21: ByteArray, width: Int, height: Int, rotation: Int): VideoFrame? {
         val ySize = width * height
         val uvSize = ySize / 4
 
-        // Allocate buffers for Y, U, and V planes
         val yBuffer = ByteBuffer.allocateDirect(ySize)
         val uBuffer = ByteBuffer.allocateDirect(uvSize)
         val vBuffer = ByteBuffer.allocateDirect(uvSize)
 
-        // Lock the bitmap to get the pixel data
-        val pixels = IntArray(width * height)
-        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
-
-        // Fill the Y, U, and V buffers with the pixel data
-        for (i in pixels.indices) {
-            val color = pixels[i]
-
-            // Extract the R, G, and B components
-            val r = (color shr 16) and 0xFF
-            val g = (color shr 8) and 0xFF
-            val b = color and 0xFF
-
-            // Calculate Y, U, and V values
-            val y = (0.299 * r + 0.587 * g + 0.114 * b).toInt()
-            val u = (-0.169 * r - 0.331 * g + 0.5 * b + 128).toInt()
-            val v = (0.5 * r - 0.419 * g - 0.081 * b + 128).toInt()
-
-            // Fill the Y buffer
-            yBuffer.put(y.toByte())
-
-            // Fill the U and V buffers (4:2:0 subsampling)
-            if (i % 2 == 0 && (i / width) % 2 == 0) {
-                uBuffer.put(u.toByte())
-                vBuffer.put(v.toByte())
-            }
-        }
-
-        // Rewind the buffers to prepare for reading
+        // Y plane
+        yBuffer.put(nv21, 0, ySize)
         yBuffer.rewind()
-        uBuffer.rewind()
-        vBuffer.rewind()
 
-        // Create the I420 buffer
+        // NV21 interleaved VU → separate U and V for I420
+        var uvIdx = ySize
+        val uvHeight = height / 2
+        val uvWidth = width / 2
+        val uArr = ByteArray(uvSize)
+        val vArr = ByteArray(uvSize)
+        for (i in 0 until uvHeight * uvWidth) {
+            vArr[i] = nv21[uvIdx++]
+            uArr[i] = nv21[uvIdx++]
+        }
+        vBuffer.put(vArr); vBuffer.rewind()
+        uBuffer.put(uArr); uBuffer.rewind()
+
         val i420Buffer = JavaI420Buffer.wrap(
             width, height,
             yBuffer, width,
@@ -267,59 +210,105 @@ class FlutterRTCVideoPipe: LocalVideoTrack.ExternalVideoFrameProcessing {
             vBuffer, width / 2,
             null
         )
+        return VideoFrame(i420Buffer, rotation, System.nanoTime())
+    }
 
-        // Create the video frame
+    // ─────────────── Virtual background (Bitmap-based, unchanged) ──────────
+
+    /**
+     * For the virtual background path we still need a Bitmap. Convert NV21 → Bitmap
+     * efficiently (no JPEG, use YuvImage with NV21 format).
+     */
+    private fun nv21ToBitmap(nv21: ByteArray, width: Int, height: Int): Bitmap? {
+        return try {
+            val yuvImage = android.graphics.YuvImage(nv21, android.graphics.ImageFormat.NV21, width, height, null)
+            val out = ByteArrayOutputStream()
+            yuvImage.compressToJpeg(android.graphics.Rect(0, 0, width, height), 90, out)
+            val jpegData = out.toByteArray()
+            BitmapFactory.decodeByteArray(jpegData, 0, jpegData.size)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun emitBitmapOnFrame(bitmap: Bitmap) {
+        val frame = convertBitmapToVideoFrame(bitmap)
+        sink?.onFrame(frame)
+    }
+
+    // Kept for virtual background output path only
+    private fun convertBitmapToVideoFrame(bitmap: Bitmap): VideoFrame? {
+        val width = bitmap.width
+        val height = bitmap.height
+        val ySize = width * height
+        val uvSize = ySize / 4
+
+        val yBuffer = ByteBuffer.allocateDirect(ySize)
+        val uBuffer = ByteBuffer.allocateDirect(uvSize)
+        val vBuffer = ByteBuffer.allocateDirect(uvSize)
+
+        val pixels = IntArray(width * height)
+        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+
+        for (i in pixels.indices) {
+            val color = pixels[i]
+            val r = (color shr 16) and 0xFF
+            val g = (color shr 8) and 0xFF
+            val b = color and 0xFF
+            val y = (0.299 * r + 0.587 * g + 0.114 * b).toInt()
+            val u = (-0.169 * r - 0.331 * g + 0.5 * b + 128).toInt()
+            val v = (0.5 * r - 0.419 * g - 0.081 * b + 128).toInt()
+            yBuffer.put(y.toByte())
+            if (i % 2 == 0 && (i / width) % 2 == 0) {
+                uBuffer.put(u.toByte())
+                vBuffer.put(v.toByte())
+            }
+        }
+        yBuffer.rewind(); uBuffer.rewind(); vBuffer.rewind()
+
+        val i420Buffer = JavaI420Buffer.wrap(
+            width, height,
+            yBuffer, width,
+            uBuffer, width / 2,
+            vBuffer, width / 2,
+            null
+        )
         return VideoFrame(i420Buffer, 0, System.nanoTime())
     }
 
-    fun setThinValue(value: Float) {
-        this.beautyFilters?.setThinValue(value)
-    }
-
-    fun setBigEyesValue(value: Float) {
-        this.beautyFilters?.setBigEyesValue(value)
-    }
-
-    fun setBeautyValue(value: Float) {
-        this.beautyFilters?.setBeautyValue(value)
-    }
-
-    fun setLipstickValue(value: Float) {
-        this.beautyFilters?.setLipstickValue(value)
-    }
-
-    fun setWhiteValue(value: Float) {
-        this.beautyFilters?.setWhiteValue(value)
-    }
+    // ─────────────────────────── onFrame (main entry) ──────────────────────
 
     override fun onFrame(frame: VideoFrame) {
         if (sink == null) return
 
         val currentTime = System.currentTimeMillis()
-        val elapsedSinceLastProcessedFrame = currentTime - lastProcessedFrameTime
+        if (currentTime - lastProcessedFrameTime < targetFrameInterval) return
+        lastProcessedFrameTime = currentTime
 
-        // Check if the elapsed time since the last processed frame is greater than the target interval
-        if (elapsedSinceLastProcessedFrame >= targetFrameInterval) {
-            // Process the current frame
-            lastProcessedFrameTime = currentTime
+        val width = frame.buffer.width
+        val height = frame.buffer.height
+        val rotation = frame.rotation
 
-            // Otherwise, perform segmentation on the captured frame and replace the background
-            val inputFrameBitmap: Bitmap? = videoFrameToBitmap(frame)
-            if (inputFrameBitmap != null) {
-                val frameFiltered = beautyFilters?.processBitmap(inputFrameBitmap, frame.rotation)
+        // Fast path: VideoFrame → NV21 (no JPEG)
+        val nv21 = videoFrameToNV21(frame)
+        if (nv21 == null) {
+            Log.d(tag, "Failed to convert VideoFrame to NV21")
+            return
+        }
 
-                if (frameFiltered != null) {
-                    if (backgroundBitmap != null) {
-                        val frameTimeMs: Long = SystemClock.uptimeMillis()
-                        bitmapMap[frameTimeMs] = CacheFrame(originalBitmap = frameFiltered)
-                        imageSegmentationHelper?.segmentLiveStreamFrame(frameFiltered, frameTimeMs)
-                    } else {
-                        emitBitmapOnFrame(frameFiltered)
-                    }
-                }
-            } else {
-                Log.d(tag, "Convert video frame to bitmap failure")
-            }
+        // Apply FaceUnity beauty on the NV21 buffer
+        val processedNv21 = beautyFilters?.fuBeauty?.processNV21Frame(nv21, width, height) ?: nv21
+
+        if (backgroundBitmap != null) {
+            // Virtual background path: convert processed NV21 to Bitmap
+            val bitmap = nv21ToBitmap(processedNv21, width, height) ?: return
+            val frameTimeMs: Long = SystemClock.uptimeMillis()
+            bitmapMap[frameTimeMs] = CacheFrame(originalBitmap = bitmap)
+            imageSegmentationHelper?.segmentLiveStreamFrame(bitmap, frameTimeMs)
+        } else {
+            // Direct output path: NV21 → VideoFrame (no extra copies)
+            val outFrame = convertNV21ToVideoFrame(processedNv21, width, height, rotation)
+            if (outFrame != null) sink?.onFrame(outFrame)
         }
     }
 

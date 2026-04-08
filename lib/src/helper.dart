@@ -256,6 +256,24 @@ class Helper {
     WebRTC.invokeMethod("setWhiteValue", {"value": value});
   }
 
+  static Future<void> setEyeBrightValue(double value) async {
+    if (!platformSupportGPUPixel) return;
+
+    WebRTC.invokeMethod("setEyeBrightValue", {"value": value});
+  }
+
+  static Future<void> setFilterName(String name) async {
+    if (!platformSupportGPUPixel) return;
+
+    WebRTC.invokeMethod("setFilterName", {"name": name});
+  }
+
+  static Future<void> setFilterLevel(double value) async {
+    if (!platformSupportGPUPixel) return;
+
+    WebRTC.invokeMethod("setFilterLevel", {"value": value});
+  }
+
   static bool get platformSupportGPUPixel => !WebRTC.platformIsWeb;
 
   static bool get platformIsDarwin =>

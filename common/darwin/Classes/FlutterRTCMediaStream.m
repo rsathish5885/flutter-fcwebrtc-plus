@@ -212,6 +212,10 @@ typedef void (^NavigatorUserMediaSuccessCallback)(RTCMediaStream* mediaStream);
     [videoPipe setSmoothValueWithValue:value];
 }
 
+- (void)setUseFaceUnity:(BOOL)use {
+    [videoPipe setUseFaceUnityWithUse:use];
+}
+
 // TODO: Use RCTConvert for constraints ...
 - (void)getUserMedia:(NSDictionary*)constraints result:(FlutterResult)result {
   // Initialize RTCMediaStream with a unique label in order to allow multiple

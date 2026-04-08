@@ -38,6 +38,6 @@ A new flutter plugin project.
     rm -rf frameworks.zip lib models res include
   CMD
 
-  s.preserve_paths = 'gpupixel.framework'
-  s.vendored_frameworks = 'gpupixel.framework'
+  s.preserve_paths = 'gpupixel.framework', 'FURenderKit.framework'
+  s.vendored_frameworks = 'gpupixel.framework', 'FURenderKit.framework'
 end

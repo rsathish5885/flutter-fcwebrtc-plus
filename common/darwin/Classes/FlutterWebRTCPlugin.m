@@ -1104,6 +1104,22 @@ static FlutterWebRTCPlugin *sharedSingleton;
   } else if([@"disableVirtualBackground" isEqualToString:call.method])  {
       result(nil);
       [self setBackgroundImage:nil];
+  } else if([@"initializeFaceUnity" isEqualToString:call.method]) {
+      NSDictionary *arguments = call.arguments;
+      FlutterStandardTypedData *key = arguments[@"key"];
+      if (key && [key isKindOfClass:[FlutterStandardTypedData class]]) {
+          [[FUManager shareManager] setupWithKey:key];
+          result(@(YES));
+      } else {
+          result([FlutterError errorWithCode:@"INVALID_ARGUMENT" message:@"FaceUnity key is missing or invalid" details:nil]);
+      }
+  } else if([@"setUseFaceUnity" isEqualToString:call.method]) {
+      NSDictionary *arguments = call.arguments;
+      NSNumber *use = arguments[@"use"];
+      if (use != nil && [use isKindOfClass:[NSNumber class]]) {
+          [self setUseFaceUnity:[use boolValue]];
+      }
+      result(nil);
   }else if([@"setThinValue" isEqualToString:call.method]) {
       NSDictionary *arguments = call.arguments;
       NSNumber *numberValue = arguments[@"value"];

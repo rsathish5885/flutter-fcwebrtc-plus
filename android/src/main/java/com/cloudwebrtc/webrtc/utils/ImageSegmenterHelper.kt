@@ -75,6 +75,7 @@ class ImageSegmenterHelper(
     // the GPU delegate needs to be used on the thread that initialized the
     // segmenter
     fun setupImageSegmenter() {
+        val appContext = context.applicationContext
         val baseOptionsBuilder = BaseOptions.builder()
         when (currentDelegate) {
             DELEGATE_CPU -> {
@@ -120,25 +121,21 @@ class ImageSegmenterHelper(
             }
 
             val options = optionsBuilder.build()
-            imagesegmenter = ImageSegmenter.createFromOptions(context, options)
-        } catch (e: IllegalStateException) {
-            imageSegmenterListener?.onError(
-                "Image segmenter failed to initialize. See error logs for details"
-            )
-            Log.e(
-                TAG,
-                "Image segmenter failed to load model with error: " + e.message
-            )
-        } catch (e: RuntimeException) {
-            // This occurs if the model being used does not support GPU
-            imageSegmenterListener?.onError(
-                "Image segmenter failed to initialize. See error logs for " + "details",
-                GPU_ERROR
-            )
-            Log.e(
-                TAG,
-                "Image segmenter failed to load model with error: " + e.message
-            )
+            imagesegmenter = ImageSegmenter.createFromOptions(appContext, options)
+        } catch (e: Throwable) {
+            // Catching Throwable to handle ExceptionInInitializerError (Error) 
+            // and regular Exceptions (IllegalStateException, RuntimeException)
+            Log.e(TAG, "Image segmenter initialization failed: ${e.message}", e)
+            
+            if (currentDelegate == DELEGATE_GPU) {
+                Log.w(TAG, "GPU initialization failed, falling back to CPU")
+                currentDelegate = DELEGATE_CPU
+                setupImageSegmenter()
+            } else {
+                imageSegmenterListener?.onError(
+                    "Image segmenter failed to initialize: ${e.message}"
+                )
+            }
         }
     }
 

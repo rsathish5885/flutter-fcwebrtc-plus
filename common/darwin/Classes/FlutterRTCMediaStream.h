@@ -30,5 +30,6 @@
 - (void)setLipstickValue:(CGFloat)value;
 - (void)setBigEyeValue:(CGFloat)value;
 - (void)setBlusherValue:(CGFloat)value;
+- (void)setUseFaceUnity:(BOOL)use;
 
 @end

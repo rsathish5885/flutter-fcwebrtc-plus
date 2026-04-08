@@ -126,6 +126,10 @@ import WebRTC
     @objc public func setWhiteValue(value: CGFloat) {
         self.beautyFilter?.whithValue = value
     }
+    
+    @objc public func setUseFaceUnity(use: Bool) {
+        self.beautyFilter?.useFaceUnity = use
+    }
 }
 
 extension RTCVideoPipe {

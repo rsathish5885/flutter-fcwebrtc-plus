@@ -10,6 +10,7 @@
 
 @interface RTCBeautyFilter : NSObject
 
+@property (nonatomic, assign) BOOL useFaceUnity;
 @property (nonatomic, assign) CGFloat beautyValue;
 @property (nonatomic, assign) CGFloat whithValue;
 @property (nonatomic, assign) CGFloat saturationValue;

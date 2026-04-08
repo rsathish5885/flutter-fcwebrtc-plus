@@ -185,6 +185,12 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
       peerConnectionDispose(connection);
     }
     mPeerConnectionObservers.clear();
+
+    if (videoPipe != null) {
+        Log.i(TAG, "dispose: Disposing videoPipe during plugin shutdown");
+        videoPipe.dispose();
+        videoPipe = null;
+    }
   }
   private void initialize(boolean bypassVoiceProcessing, int networkIgnoreMask, boolean forceSWCodec, List<String> forceSWCodecList,
   @Nullable ConstraintsMap androidAudioConfiguration, Severity logSeverity) {
@@ -199,6 +205,7 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
                     .createInitializationOptions());
 
     videoPipe = new FlutterRTCVideoPipe();
+    videoPipe.initialize(context);
     getUserMediaImpl = new GetUserMediaImpl(this, context, videoPipe);
 
     cameraUtils = new CameraUtils(getUserMediaImpl, activity);
@@ -460,6 +467,26 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
         result.success(true);
         break;
       }
+      case "setEyeBrightValue":{
+        double value = call.argument("value");
+        float floatValue = (float) value;
+        videoPipe.setEyeBrightValue(floatValue);
+        result.success(true);
+        break;
+      }
+      case "setFilterLevel":{
+        double value = call.argument("value");
+        float floatValue = (float) value;
+        videoPipe.setFilterLevel(floatValue);
+        result.success(true);
+        break;
+      }
+      case "setFilterName":{
+        String name = call.argument("name");
+        videoPipe.setFilterName(name);
+        result.success(true);
+        break;
+      }
       case "createLocalMediaStream":
         createLocalMediaStream(result);
         break;
@@ -571,6 +598,13 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
         String peerConnectionId = call.argument("peerConnectionId");
         String trackId = call.argument("trackId");
         peerConnectionGetStats(trackId, peerConnectionId, result);
+        break;
+      }
+      case "releaseFaceUnity": {
+        if (videoPipe != null) {
+            videoPipe.releaseBeautyEngine();
+        }
+        result.success(null);
         break;
       }
       case "createDataChannel": {
@@ -1726,10 +1760,27 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
     }
     removeTrackForRendererById(trackId);
     track.setEnabled(false);
-    if (track instanceof LocalVideoTrack) {
+    boolean isVideoTrack = track instanceof LocalVideoTrack;
+    if (isVideoTrack) {
       getUserMediaImpl.removeVideoCapturer(trackId);
     }
     localTracks.remove(trackId);
+    track.dispose();
+
+    if (isVideoTrack) {
+      // Check if any other local video tracks still exist
+      boolean otherVideoTracksExist = false;
+      for (LocalTrack t : localTracks.values()) {
+        if (t instanceof LocalVideoTrack) {
+          otherVideoTracksExist = true;
+          break;
+        }
+      }
+      if (!otherVideoTracksExist && videoPipe != null) {
+        Log.i(TAG, "trackDispose: Disposing videoPipe as no more video tracks exist");
+        videoPipe.dispose();
+      }
+    }
   }
 
   public void mediaStreamTrackSetEnabled(final String id, final boolean enabled, String peerConnectionId) {

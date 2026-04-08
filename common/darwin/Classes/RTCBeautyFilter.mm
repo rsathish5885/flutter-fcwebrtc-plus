@@ -7,6 +7,7 @@
 
 #import "RTCBeautyFilter.h"
 #import "gpupixel/gpupixel.h"
+#import "FaceUnity/FUManager.h"
 
 using namespace gpupixel;
 
@@ -26,7 +27,14 @@ static void releaseBGRAData(void *releaseRefCon, const void *baseAddress) {
 
 @end
 
-@implementation RTCBeautyFilter
+@implementation RTCBeautyFilter {
+    CGFloat _thinFaceValue;
+    CGFloat _whithValue;
+    CGFloat _beautyValue;
+    CGFloat _eyeValue;
+    CGFloat _lipstickValue;
+    CGFloat _blusherValue;
+}
 
 - (instancetype)init {
     self = [super init];
@@ -78,35 +86,61 @@ static void releaseBGRAData(void *releaseRefCon, const void *baseAddress) {
 
 - (void)setBeautyValue:(CGFloat)value {
     _beautyValue = value;
-    beautyFaceFilter->SetBlurAlpha(value);
+    if (self.useFaceUnity) {
+        [[FUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"blur_level" value:@(value)];
+    } else if (beautyFaceFilter) {
+        beautyFaceFilter->SetBlurAlpha(value);
+    }
 }
 
 - (void)setWhithValue:(CGFloat)value {
     _whithValue = value;
-    beautyFaceFilter->SetWhite(value);
+    if (self.useFaceUnity) {
+        [[FUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"color_level" value:@(value)];
+    } else if (beautyFaceFilter) {
+        beautyFaceFilter->SetWhite(value);
+    }
 }
 
 - (void)setThinFaceValue:(CGFloat)value {
     _thinFaceValue = value;
-    faceReshapeFilter->SetFaceSlimLevel(value);
+    if (self.useFaceUnity) {
+        [[FUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"cheek_thinning" value:@(value)];
+    } else if (faceReshapeFilter) {
+        faceReshapeFilter->SetFaceSlimLevel(value);
+    }
 }
 
 - (void)setEyeValue:(CGFloat)value {
     _eyeValue = value;
-    faceReshapeFilter->SetEyeZoomLevel(value);
+    if (self.useFaceUnity) {
+        [[FUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"eye_enlarging" value:@(value)];
+    } else if (faceReshapeFilter) {
+        faceReshapeFilter->SetEyeZoomLevel(value);
+    }
 }
 
 - (void)setLipstickValue:(CGFloat)value {
     _lipstickValue = value;
-    lipstickFilter->SetBlendLevel(value);
+    if (!self.useFaceUnity && lipstickFilter) {
+        lipstickFilter->SetBlendLevel(value);
+    }
 }
 
 - (void)setBlusherValue:(CGFloat)value {
     _blusherValue = value;
-    blusherFilter->SetBlendLevel(value);
+    if (!self.useFaceUnity && blusherFilter) {
+        blusherFilter->SetBlendLevel(value);
+    }
 }
 
 - (CVPixelBufferRef)processVideoFrame:(CVPixelBufferRef)imageBuffer {
+    if (self.useFaceUnity) {
+        if ([[FUManager shareManager] isInitBeauty]) {
+            return [[FUManager shareManager] renderItemsToPixelBuffer:imageBuffer];
+        }
+        return imageBuffer;
+    }
     CVPixelBufferLockBaseAddress(imageBuffer, 0);
     auto width = CVPixelBufferGetWidth(imageBuffer);
     auto height = CVPixelBufferGetHeight(imageBuffer);
