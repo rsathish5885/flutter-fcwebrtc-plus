@@ -192,6 +192,10 @@ typedef void (^NavigatorUserMediaSuccessCallback)(RTCMediaStream* mediaStream);
     [videoPipe setThinFaceValueWithValue:value];
 }
 
+- (void)setRedValue:(CGFloat)value {
+    [videoPipe setRedValueWithValue:value];
+}
+
 - (void)setWhiteValue:(CGFloat)value {
     [videoPipe setWhiteValueWithValue:value];
 }
@@ -208,8 +212,20 @@ typedef void (^NavigatorUserMediaSuccessCallback)(RTCMediaStream* mediaStream);
     [videoPipe setBlusherValueWithValue:value];
 }
 
+- (void)setEyeBrightValue:(CGFloat)value {
+    [videoPipe setEyeBrightValueWithValue:value];
+}
+
 - (void)setSmoothValue:(CGFloat)value {
     [videoPipe setSmoothValueWithValue:value];
+}
+
+- (void)setFilterName:(NSString *)name {
+    [videoPipe setFilterNameWithName:name];
+}
+
+- (void)setFilterLevel:(CGFloat)value {
+    [videoPipe setFilterLevelWithValue:value];
 }
 
 - (void)setUseFaceUnity:(BOOL)use {

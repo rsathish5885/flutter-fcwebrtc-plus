@@ -15,6 +15,7 @@
 #import "FlutterRTCVideoPlatformViewController.h"
 #endif
 #import "AudioManager.h"
+#import "FaceUnity/FUManager.h"
 
 #import <AVFoundation/AVFoundation.h>
 #import <WebRTC/RTCFieldTrials.h>
@@ -1109,10 +1110,15 @@ static FlutterWebRTCPlugin *sharedSingleton;
       FlutterStandardTypedData *key = arguments[@"key"];
       if (key && [key isKindOfClass:[FlutterStandardTypedData class]]) {
           [[FUManager shareManager] setupWithKey:key];
+          [self setUseFaceUnity:YES];
           result(@(YES));
       } else {
           result([FlutterError errorWithCode:@"INVALID_ARGUMENT" message:@"FaceUnity key is missing or invalid" details:nil]);
       }
+  } else if([@"releaseFaceUnity" isEqualToString:call.method]) {
+      [[FUManager shareManager] releaseResources];
+      [self setUseFaceUnity:NO];
+      result(nil);
   } else if([@"setUseFaceUnity" isEqualToString:call.method]) {
       NSDictionary *arguments = call.arguments;
       NSNumber *use = arguments[@"use"];
@@ -1127,6 +1133,15 @@ static FlutterWebRTCPlugin *sharedSingleton;
       if (numberValue != nil && [numberValue isKindOfClass:[NSNumber class]]) {
           CGFloat floatValue = [numberValue floatValue];
           [self setThinValue:floatValue];
+      }
+      result(nil);
+  }else if([@"setRedValue" isEqualToString:call.method]) {
+      NSDictionary *arguments = call.arguments;
+      NSNumber *numberValue = arguments[@"value"];
+
+      if (numberValue != nil && [numberValue isKindOfClass:[NSNumber class]]) {
+          CGFloat floatValue = [numberValue floatValue];
+          [self setRedValue:floatValue];
       }
       result(nil);
   }else if([@"setSmoothValue" isEqualToString:call.method]) {
@@ -1172,6 +1187,32 @@ static FlutterWebRTCPlugin *sharedSingleton;
       if (numberValue != nil && [numberValue isKindOfClass:[NSNumber class]]) {
           CGFloat floatValue = [numberValue floatValue];
           [self setWhiteValue:floatValue];
+      }
+      result(nil);
+  }else if([@"setEyeBrightValue" isEqualToString:call.method]) {
+      NSDictionary *arguments = call.arguments;
+      NSNumber *numberValue = arguments[@"value"];
+
+      if (numberValue != nil && [numberValue isKindOfClass:[NSNumber class]]) {
+          CGFloat floatValue = [numberValue floatValue];
+          [self setEyeBrightValue:floatValue];
+      }
+      result(nil);
+  }else if([@"setFilterName" isEqualToString:call.method]) {
+      NSDictionary *arguments = call.arguments;
+      NSString *name = arguments[@"name"];
+
+      if (name != nil && [name isKindOfClass:[NSString class]]) {
+          [self setFilterName:name];
+      }
+      result(nil);
+  }else if([@"setFilterLevel" isEqualToString:call.method]) {
+      NSDictionary *arguments = call.arguments;
+      NSNumber *numberValue = arguments[@"value"];
+
+      if (numberValue != nil && [numberValue isKindOfClass:[NSNumber class]]) {
+          CGFloat floatValue = [numberValue floatValue];
+          [self setFilterLevel:floatValue];
       }
       result(nil);
   }

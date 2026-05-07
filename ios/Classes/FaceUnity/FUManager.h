@@ -54,4 +54,7 @@ typedef NS_ENUM(NSUInteger, FUNamaHandleType) {
 
 /**销毁道具*/
 - (void)destroyAllItems;
+
+/**释放 FaceUnity / Nama 资源*/
+- (void)releaseResources;
 @end

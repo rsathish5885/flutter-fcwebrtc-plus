@@ -433,6 +433,13 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
         result.success(true);
         break;
       }
+      case "setRedValue":{
+        double value = call.argument("value");
+        float floatValue = (float) value;
+        videoPipe.setRedValue(floatValue);
+        result.success(true);
+        break;
+      }
       case "setBigEyeValue":{
         double value = call.argument("value");
         float floatValue = (float) value;

@@ -43,6 +43,9 @@ class FlutterRTCBeautyFilters(context: Context) {
     /** Redness / rosy glow (0.0 = off, 1.0 = maximum). Maps to FU red level. */
     fun setLipstickValue(value: Float) = fuBeauty.setRedLevel(value)
 
+    /** Redness / rosy glow (0.0 = off, 1.0 = maximum). Maps to FU red level. */
+    fun setRedValue(value: Float) = fuBeauty.setRedLevel(value)
+
     /** Eye brightening (0.0 = off, 1.0 = maximum). */
     fun setEyeBrightValue(value: Float) = fuBeauty.setEyeBright(value)
 

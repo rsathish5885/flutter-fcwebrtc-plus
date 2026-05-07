@@ -114,6 +114,7 @@ class FlutterRTCVideoPipe : LocalVideoTrack.ExternalVideoFrameProcessing {
     // ─────────────────────── Beauty parameter setters ──────────────────────
 
     fun setThinValue(value: Float) = beautyFilters?.setThinValue(value) ?: Unit
+    fun setRedValue(value: Float) = beautyFilters?.setRedValue(value) ?: Unit
     fun setBigEyesValue(value: Float) = beautyFilters?.setBigEyesValue(value) ?: Unit
     fun setBeautyValue(value: Float) = beautyFilters?.setBeautyValue(value) ?: Unit
     fun setLipstickValue(value: Float) = beautyFilters?.setLipstickValue(value) ?: Unit

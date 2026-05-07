@@ -106,6 +106,10 @@ import WebRTC
     @objc public func setThinFaceValue(value: CGFloat) {
         self.beautyFilter?.thinFaceValue = value
     }
+
+    @objc public func setRedValue(value: CGFloat) {
+        self.beautyFilter?.redValue = value
+    }
     
     @objc public func setLipstickValue(value: CGFloat) {
         self.beautyFilter?.lipstickValue = value
@@ -114,7 +118,11 @@ import WebRTC
     @objc public func setBlusherValue(value: CGFloat) {
         self.beautyFilter?.blusherValue = value
     }
-    
+
+    @objc public func setEyeBrightValue(value: CGFloat) {
+        self.beautyFilter?.eyeBrightValue = value
+    }
+
     @objc public func setBigEyeValue(value: CGFloat) {
         self.beautyFilter?.eyeValue = value
     }
@@ -125,6 +133,14 @@ import WebRTC
     
     @objc public func setWhiteValue(value: CGFloat) {
         self.beautyFilter?.whithValue = value
+    }
+
+    @objc public func setFilterName(name: String) {
+        self.beautyFilter?.filterName = name
+    }
+
+    @objc public func setFilterLevel(value: CGFloat) {
+        self.beautyFilter?.filterLevel = value
     }
     
     @objc public func setUseFaceUnity(use: Bool) {

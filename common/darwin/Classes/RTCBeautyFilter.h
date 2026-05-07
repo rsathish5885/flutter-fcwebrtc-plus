@@ -13,11 +13,15 @@
 @property (nonatomic, assign) BOOL useFaceUnity;
 @property (nonatomic, assign) CGFloat beautyValue;
 @property (nonatomic, assign) CGFloat whithValue;
+@property (nonatomic, assign) CGFloat redValue;
 @property (nonatomic, assign) CGFloat saturationValue;
 @property (nonatomic, assign) CGFloat thinFaceValue;
 @property (nonatomic, assign) CGFloat eyeValue;
 @property (nonatomic, assign) CGFloat lipstickValue;
 @property (nonatomic, assign) CGFloat blusherValue;
+@property (nonatomic, assign) CGFloat eyeBrightValue;
+@property (nonatomic, copy, nullable) NSString *filterName;
+@property (nonatomic, assign) CGFloat filterLevel;
 
 - (instancetype)init;
 - (void)releaseInstance;

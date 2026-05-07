@@ -218,64 +218,88 @@ class Helper {
     WebRTC.invokeMethod("disableVirtualBackground");
   }
 
+  static Future<bool> initializeFaceUnity(Uint8List key) async {
+    if (!platformIsDarwin) return false;
+
+    final bool? initialized = await WebRTC.invokeMethod(
+      "initializeFaceUnity",
+      {"key": key},
+    );
+    return initialized ?? false;
+  }
+
+  static Future<void> releaseFaceUnity() async {
+    if (!platformSupportsNativeBeauty) return;
+
+    await WebRTC.invokeMethod("releaseFaceUnity");
+  }
+
   // MARK: Adjust beauty value
 
   static Future<void> setThinFaceValue(double value) async {
-    if (!platformSupportGPUPixel) return;
+    if (!platformSupportsNativeBeauty) return;
 
     WebRTC.invokeMethod("setThinValue", {"value": value});
   }
 
+  static Future<void> setRedValue(double value) async {
+    if (!platformSupportsNativeBeauty) return;
+
+    WebRTC.invokeMethod("setRedValue", {"value": value});
+  }
+
   static Future<void> setBigEyeValue(double value) async {
-    if (!platformSupportGPUPixel) return;
+    if (!platformSupportsNativeBeauty) return;
 
     WebRTC.invokeMethod("setBigEyeValue", {"value": value});
   }
 
   static Future<void> setSmoothValue(double value) async {
-    if (!platformSupportGPUPixel) return;
+    if (!platformSupportsNativeBeauty) return;
 
     WebRTC.invokeMethod("setSmoothValue", {"value": value});
   }
 
   static Future<void> setLipstickValue(double value) async {
-    if (!platformSupportGPUPixel) return;
+    if (!platformSupportsNativeBeauty) return;
 
     WebRTC.invokeMethod("setLipstickValue", {"value": value});
   }
 
   static Future<void> setBlusherValue(double value) async {
-    if (!platformSupportGPUPixel) return;
+    if (!platformSupportsNativeBeauty) return;
 
     WebRTC.invokeMethod("setBlusherValue", {"value": value});
   }
 
   static Future<void> setWhiteValue(double value) async {
-    if (!platformSupportGPUPixel) return;
+    if (!platformSupportsNativeBeauty) return;
 
     WebRTC.invokeMethod("setWhiteValue", {"value": value});
   }
 
   static Future<void> setEyeBrightValue(double value) async {
-    if (!platformSupportGPUPixel) return;
+    if (!platformSupportsNativeBeauty) return;
 
     WebRTC.invokeMethod("setEyeBrightValue", {"value": value});
   }
 
   static Future<void> setFilterName(String name) async {
-    if (!platformSupportGPUPixel) return;
+    if (!platformSupportsNativeBeauty) return;
 
     WebRTC.invokeMethod("setFilterName", {"name": name});
   }
 
   static Future<void> setFilterLevel(double value) async {
-    if (!platformSupportGPUPixel) return;
+    if (!platformSupportsNativeBeauty) return;
 
     WebRTC.invokeMethod("setFilterLevel", {"value": value});
   }
 
-  static bool get platformSupportGPUPixel => !WebRTC.platformIsWeb;
+  static bool get platformSupportsNativeBeauty => !WebRTC.platformIsWeb;
 
+  @Deprecated('Use platformSupportsNativeBeauty instead.')
+  static bool get platformSupportGPUPixel => !WebRTC.platformIsWeb;
   static bool get platformIsDarwin =>
       !kIsWeb && (Platform.isIOS || Platform.isMacOS);
 }

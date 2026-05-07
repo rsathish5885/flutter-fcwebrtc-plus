@@ -101,6 +101,15 @@ static FUManager *shareManager = NULL;
                       withName:@"face_shape"
                          value:@(4)];
       [FURenderer itemSetParam:self->items[FUNamaHandleTypeBeauty]
+                      withName:@"face_shape_level"
+                         value:@(1)];
+      [FURenderer itemSetParam:self->items[FUNamaHandleTypeBeauty]
+                      withName:@"is_beauty_on"
+                         value:@(1)];
+      [FURenderer itemSetParam:self->items[FUNamaHandleTypeBeauty]
+                      withName:@"use_landmark"
+                         value:@(1)];
+      [FURenderer itemSetParam:self->items[FUNamaHandleTypeBeauty]
                       withName:@"is_opengl_tracing"
                          value:@(0.0)];
       [FURenderer itemSetParam:self->items[FUNamaHandleTypeBeauty]
@@ -149,8 +158,14 @@ static FUManager *shareManager = NULL;
                         withName:@"red_level"
                            value:[fliterParams objectForKey:@"redLevel"]];
         [FURenderer itemSetParam:self->items[FUNamaHandleTypeBeauty]
-                        withName:@"blurLevel"
-                           value:[fliterParams objectForKey:@"blur_level"]];
+                        withName:@"blur_level"
+                           value:[fliterParams objectForKey:@"blurLevel"]];
+        [FURenderer itemSetParam:self->items[FUNamaHandleTypeBeauty]
+                        withName:@"eye_bright"
+                           value:[fliterParams objectForKey:@"eyeBright"]];
+        [FURenderer itemSetParam:self->items[FUNamaHandleTypeBeauty]
+                        withName:@"face_shape_level"
+                           value:@(1)];
         [FURenderer itemSetParam:self->items[FUNamaHandleTypeBeauty]
                         withName:@"eye_enlarging"
                            value:[fliterParams objectForKey:@"eyeEnlarging"]];
@@ -187,6 +202,20 @@ static FUManager *shareManager = NULL;
 
 - (void)destroyAllItems {
   //     [FURenderer destroyAllItems];
+}
+
+- (void)releaseResources {
+  dispatch_sync(_asyncLoadQueue, ^{
+    [FURenderer destroyAllItems];
+    fuDestroyAllItems();
+    fuDestroyLibData();
+    fuDestroyGLContext();
+
+    for (int i = 0; i < FUNamaHandleTotal; i++) {
+      self->items[i] = 0;
+    }
+    self.isInitBeauty = NO;
+  });
 }
 
 @end
