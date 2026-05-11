@@ -15,7 +15,7 @@
 #import "FlutterRTCVideoPlatformViewController.h"
 #endif
 #import "AudioManager.h"
-#import "FaceUnity/FUManager.h"
+#import "FaceUnity/FlutterRTCFUManager.h"
 
 #import <AVFoundation/AVFoundation.h>
 #import <WebRTC/RTCFieldTrials.h>
@@ -1109,15 +1109,17 @@ static FlutterWebRTCPlugin *sharedSingleton;
       NSDictionary *arguments = call.arguments;
       FlutterStandardTypedData *key = arguments[@"key"];
       if (key && [key isKindOfClass:[FlutterStandardTypedData class]]) {
-          [[FUManager shareManager] setupWithKey:key];
-          [self setUseFaceUnity:YES];
-          result(@(YES));
+          BOOL initialized = [[FlutterRTCFUManager shareManager] setupWithKey:key];
+          if (initialized) {
+              [self setUseFaceUnity:YES];
+          }
+          result(@(initialized));
       } else {
           result([FlutterError errorWithCode:@"INVALID_ARGUMENT" message:@"FaceUnity key is missing or invalid" details:nil]);
       }
   } else if([@"releaseFaceUnity" isEqualToString:call.method]) {
-      [[FUManager shareManager] releaseResources];
       [self setUseFaceUnity:NO];
+      [[FlutterRTCFUManager shareManager] releaseResources];
       result(nil);
   } else if([@"setUseFaceUnity" isEqualToString:call.method]) {
       NSDictionary *arguments = call.arguments;

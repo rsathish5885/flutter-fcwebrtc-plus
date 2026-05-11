@@ -1,9 +1,3 @@
-// Copyright (c) 2022 NetEase, Inc. All rights reserved.
-// Use of this source code is governed by a MIT license that can be
-// found in the LICENSE file.
-
-#import "FUBeautyParam.h"
-
-@implementation FUBeautyParam
-
-@end
+// Compatibility translation unit for stale CocoaPods/Xcode integrations.
+// Intentionally does not define FUBeautyParam. The real implementation should
+// come from nertc_faceunity.

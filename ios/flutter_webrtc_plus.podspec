@@ -14,6 +14,11 @@ A new flutter plugin project.
   s.source           = { :path => '.' }
   s.source_files = 'Classes/**/*'
   s.public_header_files = 'Classes/**/*.h'
+  s.exclude_files = [
+    'Classes/FaceUnity/FUManager.*',
+    'Classes/FaceUnity/FUBeautyParam.*',
+    'Classes/FaceUnity/FULiveModel.*',
+  ]
   s.dependency 'Flutter'
   s.dependency 'nertc_faceunity'
   s.dependency 'WebRTC-SDK', '137.7151.04'

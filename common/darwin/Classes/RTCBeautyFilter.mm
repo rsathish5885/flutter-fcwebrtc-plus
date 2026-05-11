@@ -6,7 +6,7 @@
 //
 
 #import "RTCBeautyFilter.h"
-#import "FaceUnity/FUManager.h"
+#import "FaceUnity/FlutterRTCFUManager.h"
 
 @implementation RTCBeautyFilter {
     CGFloat _thinFaceValue;
@@ -24,7 +24,38 @@
 }
 
 - (void)applyFaceUnityParam:(NSString *)name value:(id)value {
-    [[FUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:name value:value];
+    [[FlutterRTCFUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:name value:value];
+}
+
+- (void)syncCurrentFaceUnityState {
+    if (!self.useFaceUnity || ![[FlutterRTCFUManager shareManager] isInitBeauty]) {
+        return;
+    }
+
+    [self applyFaceUnityParam:@"blur_level" value:@(_beautyValue)];
+    [self applyFaceUnityParam:@"color_level" value:@(_whithValue)];
+    [self applyFaceUnityParam:@"red_level" value:@(_redValue)];
+    [self applyFaceUnityParam:@"eye_bright" value:@(_eyeBrightValue)];
+    [self applyFaceUnityParam:@"use_landmark" value:@(1)];
+    [self applyFaceUnityParam:@"face_shape" value:@(4)];
+    [self applyFaceUnityParam:@"face_shape_level" value:@(1)];
+    [self applyFaceUnityParam:@"eye_enlarging" value:@(_eyeValue)];
+    [self applyFaceUnityParam:@"cheek_thinning" value:@(_thinFaceValue)];
+
+    if (_filterName.length > 0) {
+        [self applyFaceUnityParam:@"filter_name" value:_filterName];
+    }
+    [self applyFaceUnityParam:@"filter_level" value:@(_filterLevel)];
+
+    if (_lipstickValue > 0) {
+        [self ensureLipstickDefaultsConfigured];
+        [self applyFaceUnityParam:@"makeup_intensity_lip" value:@(_lipstickValue)];
+    }
+
+    if (_blusherValue > 0) {
+        [self ensureBlusherDefaultsConfigured];
+        [self applyFaceUnityParam:@"makeup_intensity_blusher" value:@(_blusherValue)];
+    }
 }
 
 - (void)ensureLipstickDefaultsConfigured {
@@ -55,6 +86,8 @@
     self = [super init];
     if (self) {
         _useFaceUnity = YES;
+        _filterName = @"origin";
+        _filterLevel = 0.5;
     }
     return self;
 }
@@ -63,46 +96,58 @@
     NSLog(@"RTCBeautyFilter deallocated");
 }
 
+- (void)setUseFaceUnity:(BOOL)useFaceUnity {
+    _useFaceUnity = useFaceUnity;
+
+    if (!useFaceUnity) {
+        _didConfigureLipstickDefaults = NO;
+        _didConfigureBlusherDefaults = NO;
+        return;
+    }
+
+    [self syncCurrentFaceUnityState];
+}
+
 #pragma mark - Property assignment
 
 - (void)setBeautyValue:(CGFloat)value {
     _beautyValue = value;
     if (self.useFaceUnity) {
-        [[FUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"blur_level" value:@(value)];
+        [[FlutterRTCFUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"blur_level" value:@(value)];
     }
 }
 
 - (void)setWhithValue:(CGFloat)value {
     _whithValue = value;
     if (self.useFaceUnity) {
-        [[FUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"color_level" value:@(value)];
+        [[FlutterRTCFUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"color_level" value:@(value)];
     }
 }
 
 - (void)setRedValue:(CGFloat)value {
     _redValue = value;
     if (self.useFaceUnity) {
-        [[FUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"red_level" value:@(value)];
+        [[FlutterRTCFUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"red_level" value:@(value)];
     }
 }
 
 - (void)setThinFaceValue:(CGFloat)value {
     _thinFaceValue = value;
     if (self.useFaceUnity) {
-        [[FUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"use_landmark" value:@(1)];
-        [[FUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"face_shape" value:@(4)];
-        [[FUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"face_shape_level" value:@(1)];
-        [[FUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"cheek_thinning" value:@(value)];
+        [[FlutterRTCFUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"use_landmark" value:@(1)];
+        [[FlutterRTCFUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"face_shape" value:@(4)];
+        [[FlutterRTCFUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"face_shape_level" value:@(1)];
+        [[FlutterRTCFUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"cheek_thinning" value:@(value)];
     }
 }
 
 - (void)setEyeValue:(CGFloat)value {
     _eyeValue = value;
     if (self.useFaceUnity) {
-        [[FUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"use_landmark" value:@(1)];
-        [[FUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"face_shape" value:@(4)];
-        [[FUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"face_shape_level" value:@(1)];
-        [[FUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"eye_enlarging" value:@(value)];
+        [[FlutterRTCFUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"use_landmark" value:@(1)];
+        [[FlutterRTCFUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"face_shape" value:@(4)];
+        [[FlutterRTCFUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"face_shape_level" value:@(1)];
+        [[FlutterRTCFUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"eye_enlarging" value:@(value)];
     }
 }
 
@@ -125,29 +170,29 @@
 - (void)setEyeBrightValue:(CGFloat)value {
     _eyeBrightValue = value;
     if (self.useFaceUnity) {
-        [[FUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"eye_bright" value:@(value)];
+        [[FlutterRTCFUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"eye_bright" value:@(value)];
     }
 }
 
 - (void)setFilterName:(NSString *)filterName {
     _filterName = [filterName copy];
     if (self.useFaceUnity && filterName.length > 0) {
-        [[FUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"filter_name" value:filterName];
+        [[FlutterRTCFUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"filter_name" value:filterName];
     }
 }
 
 - (void)setFilterLevel:(CGFloat)value {
     _filterLevel = value;
     if (self.useFaceUnity) {
-        [[FUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"filter_level" value:@(value)];
+        [[FlutterRTCFUManager shareManager] setParamItemAboutType:FUNamaHandleTypeBeauty name:@"filter_level" value:@(value)];
     }
 }
 
 - (CVPixelBufferRef)processVideoFrame:(CVPixelBufferRef)imageBuffer {
     CVPixelBufferRef outputBuffer = imageBuffer;
 
-    if (self.useFaceUnity && [[FUManager shareManager] isInitBeauty]) {
-        CVPixelBufferRef renderedBuffer = [[FUManager shareManager] renderItemsToPixelBuffer:imageBuffer];
+    if (self.useFaceUnity && [[FlutterRTCFUManager shareManager] isInitBeauty]) {
+        CVPixelBufferRef renderedBuffer = [[FlutterRTCFUManager shareManager] renderItemsToPixelBuffer:imageBuffer];
         if (renderedBuffer != NULL) {
             outputBuffer = renderedBuffer;
         }

@@ -6,6 +6,7 @@
 #import "FlutterRTCPeerConnection.h"
 #import "flutter_webrtc_plus/flutter_webrtc_plus-Swift.h"
 // #import "VideoProcessingAdapter.h"
+#import "FaceUnity/FlutterRTCFUManager.h"
 #import "LocalVideoTrack.h"
 #import "LocalAudioTrack.h"
 
@@ -588,8 +589,15 @@ typedef void (^NavigatorUserMediaSuccessCallback)(RTCMediaStream* mediaStream);
     __weak RTCCameraVideoCapturer* capturer = self.videoCapturer;
     self.videoCapturerStopHandlers[videoTrack.trackId] = ^(CompletionHandler handler) {
       NSLog(@"Stop video capturer, trackID %@", videoTrack.trackId);
-      videoPipe = nil;
-      [capturer stopCaptureWithCompletionHandler:handler];
+      RTCVideoPipe *pipeToStop = videoPipe;
+      [pipeToStop setUseFaceUnityWithUse:NO];
+      [capturer stopCaptureWithCompletionHandler:^{
+        videoPipe = nil;
+        [[FlutterRTCFUManager shareManager] releaseResources];
+        if (handler) {
+          handler();
+        }
+      }];
     };
 
     if (!videoDeviceId) {
