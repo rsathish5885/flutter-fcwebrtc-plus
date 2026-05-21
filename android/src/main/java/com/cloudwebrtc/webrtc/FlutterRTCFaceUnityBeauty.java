@@ -140,11 +140,17 @@ public class FlutterRTCFaceUnityBeauty {
             return nv21;
         }
 
+        final EGL10 currentEgl = egl;
+        if (currentEgl == null) {
+            isProcessing.set(false);
+            return nv21;
+        }
+
         // Save current EGL state to restore it later
-        EGLContext oldContext = egl.eglGetCurrentContext();
-        EGLDisplay oldDisplay = egl.eglGetCurrentDisplay();
-        EGLSurface oldDrawSurface = egl.eglGetCurrentSurface(EGL10.EGL_DRAW);
-        EGLSurface oldReadSurface = egl.eglGetCurrentSurface(EGL10.EGL_READ);
+        EGLContext oldContext = currentEgl.eglGetCurrentContext();
+        EGLDisplay oldDisplay = currentEgl.eglGetCurrentDisplay();
+        EGLSurface oldDrawSurface = currentEgl.eglGetCurrentSurface(EGL10.EGL_DRAW);
+        EGLSurface oldReadSurface = currentEgl.eglGetCurrentSurface(EGL10.EGL_READ);
 
         try {
             makeCurrent();
@@ -165,7 +171,7 @@ public class FlutterRTCFaceUnityBeauty {
         } finally {
             // Restore original EGL state (WebRTC's context)
             if (oldDisplay != null && oldDrawSurface != null && oldReadSurface != null && oldContext != null) {
-                egl.eglMakeCurrent(oldDisplay, oldDrawSurface, oldReadSurface, oldContext);
+                currentEgl.eglMakeCurrent(oldDisplay, oldDrawSurface, oldReadSurface, oldContext);
             }
             isProcessing.set(false);
         }
@@ -340,6 +346,9 @@ public class FlutterRTCFaceUnityBeauty {
             if (eglSurface != null) egl.eglDestroySurface(eglDisplay, eglSurface);
             if (eglContext != null) egl.eglDestroyContext(eglDisplay, eglContext);
             egl.eglTerminate(eglDisplay);
+            eglDisplay = null;
+            eglSurface = null;
+            eglContext = null;
             egl = null;
         }
     }

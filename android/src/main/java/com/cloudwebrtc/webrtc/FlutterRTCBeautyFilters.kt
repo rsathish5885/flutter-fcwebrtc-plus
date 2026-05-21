@@ -3,61 +3,131 @@ package com.cloudwebrtc.webrtc
 import android.content.Context
 
 /**
- * Beauty filter facade for the WebRTC video pipeline.
+ * FaceUnity beauty facade for the WebRTC video pipeline.
  *
- * Previously backed by GPUPixel (Bitmap-based, slow due to JPEG compression).
- * Now backed by FaceUnity SDK via [FlutterRTCFaceUnityBeauty] (NV21 byte array,
- * GPU-accelerated, no JPEG round-trip).
- *
- * All frame processing is handled in [FlutterRTCVideoPipe] using
- * [FlutterRTCFaceUnityBeauty.processNV21Frame]; this class is retained as the
- * parameter-control surface called from [MethodCallHandlerImpl].
+ * The FaceUnity engine is created only when beauty is actually enabled and is
+ * released as soon as every beauty parameter goes back to an "off" value.
  */
 class FlutterRTCBeautyFilters(context: Context) {
 
-    private val tag = "FlutterRTCBeautyFilters"
+    private val appContext = context.applicationContext
 
-    // Underlying FaceUnity processor — initialized lazily on first param change
-    internal val fuBeauty = FlutterRTCFaceUnityBeauty(context)
+    internal var fuBeauty: FlutterRTCFaceUnityBeauty? = null
+        private set
 
-    init {
-        // Initialize with embedded auth key from authpack
-        val key = com.cloudwebrtc.faceunity.authpack.A()
-        fuBeauty.initialize(key)
+    private var beautyValue = 0f
+    private var whiteValue = 0f
+    private var thinValue = 0f
+    private var bigEyesValue = 0f
+    private var redValue = 0f
+    private var eyeBrightValue = 0f
+    private var filterName = DEFAULT_FILTER_NAME
+    private var filterLevel = 0f
+
+    fun setBeautyValue(value: Float) {
+        beautyValue = value
+        applyState()
     }
 
-    // ─── Beauty Parameter Setters (mapped to FaceUnity equivalents) ───────
+    fun setWhiteValue(value: Float) {
+        whiteValue = value
+        applyState()
+    }
 
-    /** Skin smoothing (0.0 = off, 1.0 = maximum). Maps to FU blur level. */
-    fun setBeautyValue(value: Float) = fuBeauty.setBlurLevel(value)
+    fun setThinValue(value: Float) {
+        thinValue = value
+        applyState()
+    }
 
-    /** Whitening (0.0 = off, 1.0 = maximum). Maps to FU color level. */
-    fun setWhiteValue(value: Float) = fuBeauty.setColorLevel(value)
+    fun setBigEyesValue(value: Float) {
+        bigEyesValue = value
+        applyState()
+    }
 
-    /** Face slimming (0.0 = off, 1.0 = maximum). Maps to FU cheek thinning. */
-    fun setThinValue(value: Float) = fuBeauty.setCheekThinning(value)
+    fun setLipstickValue(value: Float) {
+        redValue = value
+        applyState()
+    }
 
-    /** Eye enlarging (0.0 = off, 1.0 = maximum). Maps to FU eye enlarging. */
-    fun setBigEyesValue(value: Float) = fuBeauty.setEyeEnlarging(value)
+    fun setRedValue(value: Float) {
+        redValue = value
+        applyState()
+    }
 
-    /** Redness / rosy glow (0.0 = off, 1.0 = maximum). Maps to FU red level. */
-    fun setLipstickValue(value: Float) = fuBeauty.setRedLevel(value)
+    fun setEyeBrightValue(value: Float) {
+        eyeBrightValue = value
+        applyState()
+    }
 
-    /** Redness / rosy glow (0.0 = off, 1.0 = maximum). Maps to FU red level. */
-    fun setRedValue(value: Float) = fuBeauty.setRedLevel(value)
+    fun setFilterName(name: String) {
+        filterName = if (name.isBlank()) DEFAULT_FILTER_NAME else name
+        applyState()
+    }
 
-    /** Eye brightening (0.0 = off, 1.0 = maximum). */
-    fun setEyeBrightValue(value: Float) = fuBeauty.setEyeBright(value)
-
-    /** Filter name (e.g. "origin", "bailiang1"). */
-    fun setFilterName(name: String) = fuBeauty.setFilterName(name)
-
-    /** Filter intensity (0.0 = off, 1.0 = maximum). */
-    fun setFilterLevel(value: Float) = fuBeauty.setFilterLevel(value)
-
-    // ─────────────────────────────────────────────────────────────────────
+    fun setFilterLevel(value: Float) {
+        filterLevel = value
+        applyState()
+    }
 
     fun release() {
-        fuBeauty.release()
+        resetValues()
+        releaseEngine()
+    }
+
+    fun releaseEngine() {
+        fuBeauty?.release()
+        fuBeauty = null
+    }
+
+    private fun applyState() {
+        if (!isBeautyEnabled()) {
+            releaseEngine()
+            return
+        }
+
+        val beauty = ensureEngine()
+        beauty.setBlurLevel(beautyValue)
+        beauty.setColorLevel(whiteValue)
+        beauty.setCheekThinning(thinValue)
+        beauty.setEyeEnlarging(bigEyesValue)
+        beauty.setRedLevel(redValue)
+        beauty.setEyeBright(eyeBrightValue)
+        beauty.setFilterName(filterName)
+        beauty.setFilterLevel(filterLevel)
+    }
+
+    private fun ensureEngine(): FlutterRTCFaceUnityBeauty {
+        fuBeauty?.let { return it }
+
+        val beauty = FlutterRTCFaceUnityBeauty(appContext)
+        beauty.initialize(com.cloudwebrtc.faceunity.authpack.A())
+        fuBeauty = beauty
+        return beauty
+    }
+
+    private fun isBeautyEnabled(): Boolean {
+        return beautyValue > EPSILON ||
+            whiteValue > EPSILON ||
+            thinValue > EPSILON ||
+            bigEyesValue > EPSILON ||
+            redValue > EPSILON ||
+            eyeBrightValue > EPSILON ||
+            filterLevel > EPSILON
+    }
+
+    private fun resetValues() {
+        beautyValue = 0f
+        whiteValue = 0f
+        thinValue = 0f
+        bigEyesValue = 0f
+        redValue = 0f
+        eyeBrightValue = 0f
+        filterName = DEFAULT_FILTER_NAME
+        filterLevel = 0f
+    }
+
+    companion object {
+        private const val DEFAULT_FILTER_NAME = "origin"
+        private const val EPSILON = 0.0001f
     }
 }
