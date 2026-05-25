@@ -1218,6 +1218,61 @@ static FlutterWebRTCPlugin *sharedSingleton;
       }
       result(nil);
   }
+  else if([@"setBeautyParams" isEqualToString:call.method]) {
+ 
+      NSDictionary *arguments = call.arguments;
+      NSDictionary *params = arguments[@"params"];
+ 
+      if (params != nil && [params isKindOfClass:[NSDictionary class]]) {
+ 
+          NSNumber *thinValue = params[@"thinValue"];
+          if ([thinValue isKindOfClass:[NSNumber class]]) {
+              [self setThinValue:[thinValue floatValue]];
+          }
+ 
+          NSNumber *redValue = params[@"redValue"];
+          if ([redValue isKindOfClass:[NSNumber class]]) {
+              [self setRedValue:[redValue floatValue]];
+          }
+ 
+          NSNumber *smoothValue = params[@"smoothValue"];
+          if ([smoothValue isKindOfClass:[NSNumber class]]) {
+              [self setSmoothValue:[smoothValue floatValue]];
+          }
+ 
+          NSNumber *bigEyeValue = params[@"bigEyeValue"];
+          if ([bigEyeValue isKindOfClass:[NSNumber class]]) {
+              [self setBigEyeValue:[bigEyeValue floatValue]];
+          }
+ 
+          NSNumber *lipstickValue = params[@"lipstickValue"];
+          if ([lipstickValue isKindOfClass:[NSNumber class]]) {
+              [self setLipstickValue:[lipstickValue floatValue]];
+          }
+ 
+          NSNumber *blusherValue = params[@"blusherValue"];
+          if ([blusherValue isKindOfClass:[NSNumber class]]) {
+              [self setBlusherValue:[blusherValue floatValue]];
+          }
+ 
+          NSNumber *whiteValue = params[@"whiteValue"];
+          if ([whiteValue isKindOfClass:[NSNumber class]]) {
+              [self setWhiteValue:[whiteValue floatValue]];
+          }
+ 
+          NSNumber *eyeBrightValue = params[@"eyeBrightValue"];
+          if ([eyeBrightValue isKindOfClass:[NSNumber class]]) {
+              [self setEyeBrightValue:[eyeBrightValue floatValue]];
+          }
+ 
+          NSNumber *filterLevel = params[@"filterLevel"];
+          if ([filterLevel isKindOfClass:[NSNumber class]]) {
+              [self setFilterLevel:[filterLevel floatValue]];
+          }
+      }
+ 
+      result(nil);
+  }
   else if ([@"getLocalDescription" isEqualToString:call.method]) {
     NSDictionary* argsMap = call.arguments;
     NSString* peerConnectionId = argsMap[@"peerConnectionId"];

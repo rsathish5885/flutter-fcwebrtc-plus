@@ -494,6 +494,55 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
         result.success(true);
         break;
       }
+      case "setBeautyParams": {
+          Map<String, Object> params = call.argument("params");
+ 
+          if (params != null) {
+ 
+              if (params.containsKey("thinValue")) {
+                  double value = ((Number) params.get("thinValue")).doubleValue();
+                  videoPipe.setThinValue((float) value);
+              }
+ 
+              if (params.containsKey("redValue")) {
+                  double value = ((Number) params.get("redValue")).doubleValue();
+                  videoPipe.setRedValue((float) value);
+              }
+ 
+              if (params.containsKey("bigEyeValue")) {
+                  double value = ((Number) params.get("bigEyeValue")).doubleValue();
+                  videoPipe.setBigEyesValue((float) value);
+              }
+ 
+              if (params.containsKey("smoothValue")) {
+                  double value = ((Number) params.get("smoothValue")).doubleValue();
+                  videoPipe.setBeautyValue((float) value);
+              }
+ 
+              if (params.containsKey("lipstickValue")) {
+                  double value = ((Number) params.get("lipstickValue")).doubleValue();
+                  videoPipe.setLipstickValue((float) value);
+              }
+ 
+              if (params.containsKey("whiteValue")) {
+                  double value = ((Number) params.get("whiteValue")).doubleValue();
+                  videoPipe.setWhiteValue((float) value);
+              }
+ 
+              if (params.containsKey("eyeBrightValue")) {
+                  double value = ((Number) params.get("eyeBrightValue")).doubleValue();
+                  videoPipe.setEyeBrightValue((float) value);
+              }
+ 
+              if (params.containsKey("filterLevel")) {
+                  double value = ((Number) params.get("filterLevel")).doubleValue();
+                  videoPipe.setFilterLevel((float) value);
+              }
+          }
+ 
+          result.success(true);
+          break;
+      }
       case "createLocalMediaStream":
         createLocalMediaStream(result);
         break;
