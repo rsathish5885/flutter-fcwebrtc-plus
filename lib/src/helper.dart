@@ -40,11 +40,8 @@ class Helper {
       enumerateDevices('audiooutput');
 
   /// For web implementation, make sure to pass the target deviceId
-  static Future<bool> switchCamera(
-    MediaStreamTrack track, [
-    String? deviceId,
-    MediaStream? stream,
-  ]) async {
+  static Future<bool> switchCamera(MediaStreamTrack track,
+      [String? deviceId, MediaStream? stream]) async {
     if (track.kind != 'video') {
       throw 'The is not a video track => $track';
     }
@@ -73,7 +70,7 @@ class Helper {
 
     var mediaConstraints = {
       'audio': false, // NO need to capture audio again
-      'video': {'deviceId': deviceId},
+      'video': {'deviceId': deviceId}
     };
 
     var newStream = await openCamera(mediaConstraints);
@@ -84,28 +81,55 @@ class Helper {
     return Future.value(true);
   }
 
+  /// Enable or disable RNNoise background noise suppression.
+  /// Enabled by default. Works on Android and iOS.
+  static Future<void> setNoiseSuppressionEnabled(bool enabled) {
+    return WebRTC.invokeMethod(
+      'setNoiseSuppressionEnabled',
+      <String, dynamic>{'enabled': enabled},
+    );
+  }
+
+  /// Set RNNoise suppression level.
+  /// 1 = mild (rnnoise only), 2 = moderate/default (VAD gate, natural voice),
+  /// 3 = aggressive (double-pass + gate, use in traffic/noisy environments).
+  static Future<void> setNoiseSuppressionLevel(int level) {
+    assert(level >= 1 && level <= 3, 'level must be 1, 2, or 3');
+    return WebRTC.invokeMethod(
+      'setNoiseSuppressionLevel',
+      <String, dynamic>{'level': level},
+    );
+  }
+
+  /// Override the rotation embedded in outgoing video frames (Android only).
+  /// [degrees] must be 0, 90, 180, or 270. Pass null to restore automatic rotation.
+  static Future<void> setVideoRotation(int? degrees) {
+    assert(degrees == null || [0, 90, 180, 270].contains(degrees),
+        'degrees must be null, 0, 90, 180, or 270');
+    return WebRTC.invokeMethod(
+      'setVideoRotation',
+      <String, dynamic>{'degrees': degrees},
+    );
+  }
+
   static Future<void> setZoom(MediaStreamTrack videoTrack, double zoomLevel) =>
       CameraUtils.setZoom(videoTrack, zoomLevel);
 
   static Future<void> setFocusMode(
-    MediaStreamTrack videoTrack,
-    CameraFocusMode focusMode,
-  ) => CameraUtils.setFocusMode(videoTrack, focusMode);
+          MediaStreamTrack videoTrack, CameraFocusMode focusMode) =>
+      CameraUtils.setFocusMode(videoTrack, focusMode);
 
   static Future<void> setFocusPoint(
-    MediaStreamTrack videoTrack,
-    Point<double>? point,
-  ) => CameraUtils.setFocusPoint(videoTrack, point);
+          MediaStreamTrack videoTrack, Point<double>? point) =>
+      CameraUtils.setFocusPoint(videoTrack, point);
 
   static Future<void> setExposureMode(
-    MediaStreamTrack videoTrack,
-    CameraExposureMode exposureMode,
-  ) => CameraUtils.setExposureMode(videoTrack, exposureMode);
+          MediaStreamTrack videoTrack, CameraExposureMode exposureMode) =>
+      CameraUtils.setExposureMode(videoTrack, exposureMode);
 
   static Future<void> setExposurePoint(
-    MediaStreamTrack videoTrack,
-    Point<double>? point,
-  ) => CameraUtils.setExposurePoint(videoTrack, point);
+          MediaStreamTrack videoTrack, Point<double>? point) =>
+      CameraUtils.setExposurePoint(videoTrack, point);
 
   /// Used to select a specific audio output device.
   ///
@@ -117,9 +141,8 @@ class Helper {
   /// speaker and the preferred device
   /// web: flutter web can use RTCVideoRenderer.audioOutput instead
   static Future<void> selectAudioOutput(String deviceId) async {
-    await navigator.mediaDevices.selectAudioOutput(
-      AudioOutputOptions(deviceId: deviceId),
-    );
+    await navigator.mediaDevices
+        .selectAudioOutput(AudioOutputOptions(deviceId: deviceId));
   }
 
   /// Set audio input device for Flutter native
@@ -171,10 +194,9 @@ class Helper {
   /// Must be set before initiating a WebRTC session and cannot be changed
   /// mid session.
   static Future<void> setAndroidAudioConfiguration(
-    AndroidAudioConfiguration androidAudioConfiguration,
-  ) => AndroidNativeAudioManagement.setAndroidAudioConfiguration(
-    androidAudioConfiguration,
-  );
+          AndroidAudioConfiguration androidAudioConfiguration) =>
+      AndroidNativeAudioManagement.setAndroidAudioConfiguration(
+          androidAudioConfiguration);
 
   /// After Android app finishes a session, on audio focus loss, clear the active communication device.
   static Future<void> clearAndroidCommunicationDevice() =>
@@ -182,21 +204,16 @@ class Helper {
 
   /// Set the audio configuration for iOS
   static Future<void> setAppleAudioConfiguration(
-    AppleAudioConfiguration appleAudioConfiguration,
-  ) => AppleNativeAudioManagement.setAppleAudioConfiguration(
-    appleAudioConfiguration,
-  );
+          AppleAudioConfiguration appleAudioConfiguration) =>
+      AppleNativeAudioManagement.setAppleAudioConfiguration(
+          appleAudioConfiguration);
 
   /// Set the audio configuration for iOS
-  static Future<void> setAppleAudioIOMode(
-    AppleAudioIOMode mode, {
-    bool preferSpeakerOutput = false,
-  }) => AppleNativeAudioManagement.setAppleAudioConfiguration(
-    AppleNativeAudioManagement.getAppleAudioConfigurationForMode(
-      mode,
-      preferSpeakerOutput: preferSpeakerOutput,
-    ),
-  );
+  static Future<void> setAppleAudioIOMode(AppleAudioIOMode mode,
+          {bool preferSpeakerOutput = false}) =>
+      AppleNativeAudioManagement.setAppleAudioConfiguration(
+          AppleNativeAudioManagement.getAppleAudioConfigurationForMode(mode,
+              preferSpeakerOutput: preferSpeakerOutput));
 
   // Virtual Background & Blur using Google Mediapipe with GPU tasks, Waterbus
   static Future<bool> isGpuSupported() async {
@@ -235,9 +252,10 @@ class Helper {
   static Future<bool> initializeFaceUnity(Uint8List key) async {
     if (!platformIsDarwin) return false;
 
-    final bool? initialized = await WebRTC.invokeMethod("initializeFaceUnity", {
-      "key": key,
-    });
+    final bool? initialized = await WebRTC.invokeMethod(
+      "initializeFaceUnity",
+      {"key": key},
+    );
     return initialized ?? false;
   }
 

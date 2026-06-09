@@ -10,6 +10,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
 import android.hardware.Camera.CameraInfo;
+import android.media.AudioManager;
 import android.media.MediaRecorder;
 import android.media.AudioAttributes;
 import android.media.AudioDeviceInfo;
@@ -245,11 +246,14 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
                         .setUseStereoOutput(true)
                         .setAudioSource(MediaRecorder.AudioSource.MIC);
     } else {
-      boolean useHardwareAudioProcessing = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q;
-      boolean useLowLatency = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O;
-      audioDeviceModuleBuilder.setUseHardwareAcousticEchoCanceler(useHardwareAudioProcessing)
+      boolean hasHardwareAec = JavaAudioDeviceModule.isBuiltInAcousticEchoCancelerSupported();
+      boolean hasHardwareNs  = JavaAudioDeviceModule.isBuiltInNoiseSuppressorSupported();
+      boolean useLowLatency  = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O;
+      android.util.Log.i("WebRTC_AEC", "hasHardwareAec=" + hasHardwareAec + " hasHardwareNs=" + hasHardwareNs + " sdk=" + Build.VERSION.SDK_INT);
+      audioDeviceModuleBuilder.setUseHardwareAcousticEchoCanceler(hasHardwareAec)
                         .setUseLowLatency(useLowLatency)
-                        .setUseHardwareNoiseSuppressor(useHardwareAudioProcessing);
+                        .setUseHardwareNoiseSuppressor(hasHardwareNs)
+                        .setAudioSource(android.media.MediaRecorder.AudioSource.VOICE_COMMUNICATION);
     }
 
     audioDeviceModuleBuilder.setSamplesReadyCallback(recordSamplesReadyCallbackAdapter);
@@ -277,6 +281,13 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
     if(!bypassVoiceProcessing) {
        if(JavaAudioDeviceModule.isBuiltInNoiseSuppressorSupported()) {
          audioDeviceModule.setNoiseSuppressorEnabled(true);
+       }
+       // MODE_IN_COMMUNICATION activates the Android audio pipeline for VoIP:
+       // enables system-level AEC, microphone pre-processing, and speakerphone
+       // echo suppression at the OS/HAL level — independent of WebRTC's APM.
+       AudioManager am = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+       if (am != null) {
+           am.setMode(AudioManager.MODE_IN_COMMUNICATION);
        }
     }
 
@@ -499,43 +510,43 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
  
           if (params != null) {
  
-              if (params.containsKey("thinValue")) {
-                  double value = ((Number) params.get("thinValue")).doubleValue();
+              if (params.containsKey("Cheek Thinning")) {
+                  double value = ((Number) params.get("Cheek Thinning")).doubleValue();
                   videoPipe.setThinValue((float) value);
               }
  
-              if (params.containsKey("redValue")) {
-                  double value = ((Number) params.get("redValue")).doubleValue();
+              if (params.containsKey("RedLevel")) {
+                  double value = ((Number) params.get("RedLevel")).doubleValue();
                   videoPipe.setRedValue((float) value);
               }
  
-              if (params.containsKey("bigEyeValue")) {
-                  double value = ((Number) params.get("bigEyeValue")).doubleValue();
+              if (params.containsKey("Eye Enlarging")) {
+                  double value = ((Number) params.get("Eye Enlarging")).doubleValue();
                   videoPipe.setBigEyesValue((float) value);
               }
  
-              if (params.containsKey("smoothValue")) {
-                  double value = ((Number) params.get("smoothValue")).doubleValue();
+              if (params.containsKey("Microdermabrasion")) {
+                  double value = ((Number) params.get("Microdermabrasion")).doubleValue();
                   videoPipe.setBeautyValue((float) value);
               }
  
-              if (params.containsKey("lipstickValue")) {
-                  double value = ((Number) params.get("lipstickValue")).doubleValue();
+              if (params.containsKey("lipstick")) {
+                  double value = ((Number) params.get("lipstick")).doubleValue();
                   videoPipe.setLipstickValue((float) value);
               }
  
-              if (params.containsKey("whiteValue")) {
-                  double value = ((Number) params.get("whiteValue")).doubleValue();
+              if (params.containsKey("Whiten")) {
+                  double value = ((Number) params.get("Whiten")).doubleValue();
                   videoPipe.setWhiteValue((float) value);
               }
  
-              if (params.containsKey("eyeBrightValue")) {
-                  double value = ((Number) params.get("eyeBrightValue")).doubleValue();
+              if (params.containsKey("Eye Bright")) {
+                  double value = ((Number) params.get("Eye Bright")).doubleValue();
                   videoPipe.setEyeBrightValue((float) value);
               }
  
-              if (params.containsKey("filterLevel")) {
-                  double value = ((Number) params.get("filterLevel")).doubleValue();
+              if (params.containsKey("Filter Level")) {
+                  double value = ((Number) params.get("Filter Level")).doubleValue();
                   videoPipe.setFilterLevel((float) value);
               }
           }
@@ -659,6 +670,30 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
       case "releaseFaceUnity": {
         if (videoPipe != null) {
             videoPipe.releaseBeautyEngine();
+        }
+        result.success(null);
+        break;
+      }
+      case "setNoiseSuppressionEnabled": {
+        Boolean enabled = call.argument("enabled");
+        if (audioProcessingController != null && enabled != null) {
+            audioProcessingController.setNoiseSuppressionEnabled(enabled);
+        }
+        result.success(null);
+        break;
+      }
+      case "setNoiseSuppressionLevel": {
+        Integer level = call.argument("level");
+        if (audioProcessingController != null && level != null) {
+            audioProcessingController.setNoiseSuppressionLevel(level);
+        }
+        result.success(null);
+        break;
+      }
+      case "setVideoRotation": {
+        Integer degrees = call.argument("degrees");
+        if (videoPipe != null) {
+            videoPipe.setRotationOverride(degrees);
         }
         result.success(null);
         break;

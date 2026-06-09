@@ -25,6 +25,7 @@ import java.nio.ByteBuffer
 class FlutterRTCVideoPipe : LocalVideoTrack.ExternalVideoFrameProcessing {
 
     var isGpuSupported = false
+    var rotationOverride: Int? = null  // null = use camera rotation; 0/90/180/270 = force
     private val tag: String = "[FlutterRTC-VideoPipe]"
     private var backgroundBitmap: Bitmap? = null
     private var expectConfidence = 0.7
@@ -131,55 +132,57 @@ class FlutterRTCVideoPipe : LocalVideoTrack.ExternalVideoFrameProcessing {
      * in the previous GPUPixel-based implementation.
      */
     private fun videoFrameToNV21(videoFrame: VideoFrame): ByteArray? {
+        videoFrame.retain()
         return try {
-            videoFrame.retain()
             val buffer = videoFrame.buffer
             val i420Buffer = buffer.toI420() ?: return null
+            try {
+                val width = i420Buffer.width
+                val height = i420Buffer.height
+                val nv21Size = width * height * 3 / 2
+                val nv21 = ByteArray(nv21Size)
 
-            val width = i420Buffer.width
-            val height = i420Buffer.height
-            val nv21Size = width * height * 3 / 2
-            val nv21 = ByteArray(nv21Size)
-
-            // Y plane — copy directly
-            val yBuffer = i420Buffer.dataY
-            val yStride = i420Buffer.strideY
-            var yDst = 0
-            for (row in 0 until height) {
-                yBuffer.position(row * yStride)
-                yBuffer.get(nv21, yDst, width)
-                yDst += width
-            }
-
-            // U/V planes → interleaved VU for NV21
-            val uBuffer = i420Buffer.dataU
-            val vBuffer = i420Buffer.dataV
-            val uStride = i420Buffer.strideU
-            val vStride = i420Buffer.strideV
-            var uvDst = width * height
-            val uvHeight = height / 2
-            val uvWidth = width / 2
-            for (row in 0 until uvHeight) {
-                uBuffer.position(row * uStride)
-                vBuffer.position(row * vStride)
-                for (col in 0 until uvWidth) {
-                    nv21[uvDst++] = vBuffer.get() // V first in NV21
-                    nv21[uvDst++] = uBuffer.get()
+                // Y plane — copy directly
+                val yBuffer = i420Buffer.dataY
+                val yStride = i420Buffer.strideY
+                var yDst = 0
+                for (row in 0 until height) {
+                    yBuffer.position(row * yStride)
+                    yBuffer.get(nv21, yDst, width)
+                    yDst += width
                 }
-            }
 
-            i420Buffer.release()
-            videoFrame.release()
-            nv21
+                // U/V planes → interleaved VU for NV21
+                val uBuffer = i420Buffer.dataU
+                val vBuffer = i420Buffer.dataV
+                val uStride = i420Buffer.strideU
+                val vStride = i420Buffer.strideV
+                var uvDst = width * height
+                val uvHeight = height / 2
+                val uvWidth = width / 2
+                for (row in 0 until uvHeight) {
+                    uBuffer.position(row * uStride)
+                    vBuffer.position(row * vStride)
+                    for (col in 0 until uvWidth) {
+                        nv21[uvDst++] = vBuffer.get() // V first in NV21
+                        nv21[uvDst++] = uBuffer.get()
+                    }
+                }
+                nv21
+            } finally {
+                i420Buffer.release()
+            }
         } catch (e: Exception) {
             e.printStackTrace()
             null
+        } finally {
+            videoFrame.release()
         }
     }
 
     // ───────────────────── NV21 → VideoFrame ──────────────────────────────
 
-    private fun convertNV21ToVideoFrame(nv21: ByteArray, width: Int, height: Int, rotation: Int): VideoFrame? {
+    private fun convertNV21ToVideoFrame(nv21: ByteArray, width: Int, height: Int, rotation: Int, timestampNs: Long): VideoFrame? {
         val ySize = width * height
         val uvSize = ySize / 4
 
@@ -211,7 +214,7 @@ class FlutterRTCVideoPipe : LocalVideoTrack.ExternalVideoFrameProcessing {
             vBuffer, width / 2,
             null
         )
-        return VideoFrame(i420Buffer, rotation, System.nanoTime())
+        return VideoFrame(i420Buffer, rotation, timestampNs)
     }
 
     // ─────────────── Virtual background (Bitmap-based, unchanged) ──────────
@@ -286,9 +289,11 @@ class FlutterRTCVideoPipe : LocalVideoTrack.ExternalVideoFrameProcessing {
         if (currentTime - lastProcessedFrameTime < targetFrameInterval) return
         lastProcessedFrameTime = currentTime
 
+        // Capture metadata before videoFrameToNV21 which retains/releases the frame
+        val timestampNs = frame.timestampNs
         val width = frame.buffer.width
         val height = frame.buffer.height
-        val rotation = frame.rotation
+        val rotation = rotationOverride ?: frame.rotation
 
         // Fast path: VideoFrame → NV21 (no JPEG)
         val nv21 = videoFrameToNV21(frame)
@@ -308,7 +313,7 @@ class FlutterRTCVideoPipe : LocalVideoTrack.ExternalVideoFrameProcessing {
             imageSegmentationHelper?.segmentLiveStreamFrame(bitmap, frameTimeMs)
         } else {
             // Direct output path: NV21 → VideoFrame (no extra copies)
-            val outFrame = convertNV21ToVideoFrame(processedNv21, width, height, rotation)
+            val outFrame = convertNV21ToVideoFrame(processedNv21, width, height, rotation, timestampNs)
             if (outFrame != null) sink?.onFrame(outFrame)
         }
     }

@@ -1117,6 +1117,20 @@ static FlutterWebRTCPlugin *sharedSingleton;
       } else {
           result([FlutterError errorWithCode:@"INVALID_ARGUMENT" message:@"FaceUnity key is missing or invalid" details:nil]);
       }
+  } else if([@"setNoiseSuppressionEnabled" isEqualToString:call.method]) {
+      NSDictionary *arguments = call.arguments;
+      NSNumber *enabled = arguments[@"enabled"];
+      if (enabled != nil) {
+          _audioManager.noiseSuppressor.enabled = [enabled boolValue];
+      }
+      result(nil);
+  } else if([@"setNoiseSuppressionLevel" isEqualToString:call.method]) {
+      NSDictionary *arguments = call.arguments;
+      NSNumber *level = arguments[@"level"];
+      if (level != nil) {
+          [_audioManager.noiseSuppressor setSuppressionLevel:[level intValue]];
+      }
+      result(nil);
   } else if([@"releaseFaceUnity" isEqualToString:call.method]) {
       [self setUseFaceUnity:NO];
       [[FlutterRTCFUManager shareManager] releaseResources];
@@ -1225,27 +1239,27 @@ static FlutterWebRTCPlugin *sharedSingleton;
  
       if (params != nil && [params isKindOfClass:[NSDictionary class]]) {
  
-          NSNumber *thinValue = params[@"thinValue"];
+          NSNumber *thinValue = params[@"Cheek Thinning"];
           if ([thinValue isKindOfClass:[NSNumber class]]) {
               [self setThinValue:[thinValue floatValue]];
           }
  
-          NSNumber *redValue = params[@"redValue"];
+          NSNumber *redValue = params[@"RedLevel"];
           if ([redValue isKindOfClass:[NSNumber class]]) {
               [self setRedValue:[redValue floatValue]];
           }
  
-          NSNumber *smoothValue = params[@"smoothValue"];
+          NSNumber *smoothValue = params[@"Microdermabrasion"];
           if ([smoothValue isKindOfClass:[NSNumber class]]) {
               [self setSmoothValue:[smoothValue floatValue]];
           }
  
-          NSNumber *bigEyeValue = params[@"bigEyeValue"];
+          NSNumber *bigEyeValue = params[@"Eye Enlarging"];
           if ([bigEyeValue isKindOfClass:[NSNumber class]]) {
               [self setBigEyeValue:[bigEyeValue floatValue]];
           }
  
-          NSNumber *lipstickValue = params[@"lipstickValue"];
+          NSNumber *lipstickValue = params[@"lipstick"];
           if ([lipstickValue isKindOfClass:[NSNumber class]]) {
               [self setLipstickValue:[lipstickValue floatValue]];
           }
@@ -1255,17 +1269,17 @@ static FlutterWebRTCPlugin *sharedSingleton;
               [self setBlusherValue:[blusherValue floatValue]];
           }
  
-          NSNumber *whiteValue = params[@"whiteValue"];
+          NSNumber *whiteValue = params[@"Whiten"];
           if ([whiteValue isKindOfClass:[NSNumber class]]) {
               [self setWhiteValue:[whiteValue floatValue]];
           }
  
-          NSNumber *eyeBrightValue = params[@"eyeBrightValue"];
+          NSNumber *eyeBrightValue = params[@"Eye Bright"];
           if ([eyeBrightValue isKindOfClass:[NSNumber class]]) {
               [self setEyeBrightValue:[eyeBrightValue floatValue]];
           }
  
-          NSNumber *filterLevel = params[@"filterLevel"];
+          NSNumber *filterLevel = params[@"Filter Level"];
           if ([filterLevel isKindOfClass:[NSNumber class]]) {
               [self setFilterLevel:[filterLevel floatValue]];
           }

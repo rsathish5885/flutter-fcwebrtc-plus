@@ -65,3 +65,4 @@ third_party/lib/downloads
 build/
 third_party/lib/libwebrtc/
 third_party/lib/downloads/
+/android/.cxx/*

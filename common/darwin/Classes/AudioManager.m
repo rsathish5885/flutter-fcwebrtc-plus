@@ -5,11 +5,13 @@
   RTCDefaultAudioProcessingModule* _audioProcessingModule;
   AudioProcessingAdapter* _capturePostProcessingAdapter;
   AudioProcessingAdapter* _renderPreProcessingAdapter;
+  RnNoiseSuppressor* _noiseSuppressor;
 }
 
 @synthesize capturePostProcessingAdapter = _capturePostProcessingAdapter;
 @synthesize renderPreProcessingAdapter = _renderPreProcessingAdapter;
 @synthesize audioProcessingModule = _audioProcessingModule;
+@synthesize noiseSuppressor = _noiseSuppressor;
 
 + (instancetype)sharedInstance {
   static dispatch_once_t onceToken;
@@ -27,6 +29,9 @@
     _renderPreProcessingAdapter = [[AudioProcessingAdapter alloc] init];
     _audioProcessingModule.capturePostProcessingDelegate = _capturePostProcessingAdapter;
     _audioProcessingModule.renderPreProcessingDelegate = _renderPreProcessingAdapter;
+
+    _noiseSuppressor = [[RnNoiseSuppressor alloc] init];
+    [_capturePostProcessingAdapter addProcessing:_noiseSuppressor];
   }
   return self;
 }

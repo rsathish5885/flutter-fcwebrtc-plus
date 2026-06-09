@@ -2,15 +2,17 @@ package com.cloudwebrtc.webrtc;
 
 import android.content.Context;
 import android.hardware.Camera;
-import android.opengl.EGL14;
 import android.opengl.GLES20;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.util.Log;
 
 import com.cloudwebrtc.faceunity.FURenderer;
-import com.cloudwebrtc.faceunity.authpack;
 import com.cloudwebrtc.faceunity.utils.FileUtils;
 
 import java.nio.ByteBuffer;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.microedition.khronos.egl.EGL10;
@@ -22,9 +24,10 @@ import javax.microedition.khronos.egl.EGLSurface;
 /**
  * FaceUnity beauty wrapper for WebRTC.
  *
- * <p>Runs FURenderer on a dedicated GL HandlerThread. Accepts NV21 frames from the
- * WebRTC video pipeline and returns NV21 frames back, completely avoiding JPEG
- * compression that was used in the previous GPUPixel-based implementation.
+ * All EGL and FaceUnity calls are confined to a single dedicated HandlerThread
+ * ("FaceUnity-GL"). This completely isolates FaceUnity's GL context from
+ * WebRTC's encoder/decoder threads, preventing EGL_BAD_ACCESS and MediaCodec
+ * crashes that occur when eglMakeCurrent is called on WebRTC-owned threads.
  */
 public class FlutterRTCFaceUnityBeauty {
 
@@ -33,24 +36,32 @@ public class FlutterRTCFaceUnityBeauty {
     private final Context context;
     private FURenderer fuRenderer;
 
-    // GL context owned by this class
+    // Dedicated GL thread — ALL EGL / FaceUnity calls happen exclusively here
+    private HandlerThread fuThread;
+    private Handler fuHandler;
+
+    // EGL objects — created and used only on fuThread
     private EGL10 egl;
     private EGLDisplay eglDisplay;
     private EGLContext eglContext;
     private EGLSurface eglSurface;
 
-    private final AtomicBoolean initialized = new AtomicBoolean(false);
+    private final AtomicBoolean initialized  = new AtomicBoolean(false);
     private final AtomicBoolean isProcessing = new AtomicBoolean(false);
 
-    // Current beauty parameters (thread-safe via volatile)
-    private volatile float blurLevel = 0.7f;
-    private volatile float colorLevel = 0.3f;
-    private volatile float redLevel = 0.3f;
-    private volatile float eyeEnlarging = 0.4f;
+    // Last successfully beauty-processed frame — returned for frames that arrive while
+    // FaceUnity is busy, so output is always beauty (no flicker) at full camera FPS.
+    private volatile byte[] cachedBeautyNV21 = null;
+
+    // Beauty parameters — written from any thread, applied on fuThread
+    private volatile float blurLevel     = 0.7f;
+    private volatile float colorLevel    = 0.3f;
+    private volatile float redLevel      = 0.3f;
+    private volatile float eyeEnlarging  = 0.4f;
     private volatile float cheekThinning = 0.0f;
-    private volatile float eyeBright = 0.0f;
-    private volatile String filterName = "origin";
-    private volatile float filterLevel = 0.5f;
+    private volatile float eyeBright     = 0.0f;
+    private volatile String filterName   = "origin";
+    private volatile float filterLevel   = 0.5f;
 
     public FlutterRTCFaceUnityBeauty(Context context) {
         this.context = context;
@@ -58,173 +69,187 @@ public class FlutterRTCFaceUnityBeauty {
 
     // ─────────────────────────── Init / Release ────────────────────────────
 
-    /**
-     * Must be called once before processing frames. Safe to call multiple times.
-     *
-     * @param beautyKey FaceUnity auth key bytes (from authpack.A())
-     */
     public synchronized void initialize(byte[] beautyKey) {
         if (initialized.get()) return;
 
-        try {
-            // 1. Init FaceUnity SDK (one-time, static)
-            if (!FURenderer.isLibInit()) {
-                FURenderer.initFURenderer(context, beautyKey);
+        fuThread = new HandlerThread("FaceUnity-GL");
+        fuThread.start();
+        fuHandler = new Handler(fuThread.getLooper());
+
+        CountDownLatch latch = new CountDownLatch(1);
+        fuHandler.post(() -> {
+            try {
+                if (!FURenderer.isLibInit()) {
+                    FURenderer.initFURenderer(context, beautyKey);
+                }
+
+                createEGLContext();
+                // Make context current once — it stays current on fuThread forever.
+                // No makeCurrent/release per-frame: fuThread is dedicated and never
+                // runs any other EGL code, so the context is always available.
+                makeCurrent();
+
+                new Thread(() -> FileUtils.copyAssetsChangeFaceTemplate(context)).start();
+
+                fuRenderer = new FURenderer.Builder(context)
+                        .maxFaces(1)
+                        .inputImageOrientation(
+                                getCameraOrientation(Camera.CameraInfo.CAMERA_FACING_FRONT))
+                        .inputTextureType(0)      // CPU NV21 input
+                        .createEGLContext(false)  // we own the EGL context
+                        .build();
+
+                fuRenderer.onSurfaceCreated();
+                fuRenderer.setBeautificationOn(true);
+                applyBeautyParams();
+
+                initialized.set(true);
+                Log.i(TAG, "FaceUnity initialized successfully");
+            } catch (Exception e) {
+                Log.e(TAG, "FaceUnity initialization failed: " + e.getMessage(), e);
+            } finally {
+                latch.countDown();
             }
+        });
 
-            // 2. Create EGL context for FaceUnity's GL operations
-            createEGLContext();
-
-            // 3. Async copy of asset bundles
-            new Thread(() -> FileUtils.copyAssetsChangeFaceTemplate(context)).start();
-
-            // 4. Build the FURenderer
-            fuRenderer = new FURenderer.Builder(context)
-                    .maxFaces(1)
-                    .inputImageOrientation(getCameraOrientation(Camera.CameraInfo.CAMERA_FACING_FRONT))
-                    .inputTextureType(0) // CPU NV21 input
-                    .createEGLContext(false) // we manage EGL ourselves
-                    .build();
-
-            makeCurrent();
-            fuRenderer.onSurfaceCreated();
-            fuRenderer.setBeautificationOn(true);
-
-            // Apply initial beauty params
-            applyBeautyParams();
-
-            initialized.set(true);
-            Log.i(TAG, "FaceUnity initialized successfully");
-        } catch (Exception e) {
-            Log.e(TAG, "FaceUnity initialization failed: " + e.getMessage(), e);
+        try {
+            if (!latch.await(5, TimeUnit.SECONDS)) {
+                Log.e(TAG, "FaceUnity initialization timed out");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 
     public synchronized void release() {
-        release(true); // Default to hard reset to avoid cross-integration conflicts
+        release(true);
     }
 
     public synchronized void release(boolean hardReset) {
         if (!initialized.get()) return;
-        try {
-            makeCurrent();
-            if (fuRenderer != null) {
-                fuRenderer.onSurfaceDestroyed();
-                fuRenderer = null;
-            }
-            if (hardReset) {
-                com.cloudwebrtc.faceunity.FURenderer.destroyLibData();
-            }
-            releaseEGLContext();
-        } catch (Exception e) {
-            Log.e(TAG, "Release error: " + e.getMessage());
-        }
         initialized.set(false);
+
+        if (fuHandler != null) {
+            CountDownLatch latch = new CountDownLatch(1);
+            fuHandler.post(() -> {
+                try {
+                    if (fuRenderer != null) {
+                        fuRenderer.onSurfaceDestroyed();
+                        fuRenderer = null;
+                    }
+                    if (hardReset) {
+                        FURenderer.destroyLibData();
+                    }
+                    releaseEGLContext();
+                } catch (Exception e) {
+                    Log.e(TAG, "Release error: " + e.getMessage());
+                } finally {
+                    latch.countDown();
+                }
+            });
+            try {
+                latch.await(2, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            fuThread.quitSafely();
+            fuThread = null;
+            fuHandler = null;
+        }
+
         Log.i(TAG, "FaceUnity released (hardReset=" + hardReset + ")");
     }
 
     // ─────────────────────────── Frame Processing ──────────────────────────
 
-    /**
-     * Process a single NV21 frame through FaceUnity beauty.
-     *
-     * @param nv21   input NV21 byte array (width * height * 3 / 2 bytes)
-     * @param width  frame width
-     * @param height frame height
-     * @return processed NV21 byte array, or the original if processing failed
-     */
     public byte[] processNV21Frame(byte[] nv21, int width, int height) {
-        if (!initialized.get() || fuRenderer == null) return nv21;
-        if (!isProcessing.compareAndSet(false, true)) {
-            // Already processing a frame — drop this one to avoid queue buildup
-            return nv21;
+        if (!initialized.get() || fuHandler == null) return nv21;
+
+        // If FaceUnity is free, submit this frame for async processing.
+        // The capture thread never blocks — it returns the cached result immediately.
+        if (isProcessing.compareAndSet(false, true)) {
+            fuHandler.post(() -> {
+                try {
+                    int texId = fuRenderer.onDrawFrame(nv21, width, height);
+                    if (texId > 0) {
+                        byte[] rgba = readPixelsFromTexture(texId, width, height);
+                        cachedBeautyNV21 = rgbaToNV21(rgba, width, height);
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "processNV21Frame error: " + e.getMessage());
+                } finally {
+                    isProcessing.set(false);
+                }
+            });
         }
 
-        final EGL10 currentEgl = egl;
-        if (currentEgl == null) {
-            isProcessing.set(false);
-            return nv21;
+        // Return the latest cached beauty result (one frame behind at most).
+        // Guard: only use the cache if it matches the current frame's dimensions —
+        // a mismatch means the camera resolution or rotation changed, which would cause
+        // an IndexOutOfBoundsException in the NV21→VideoFrame conversion.
+        byte[] cached = cachedBeautyNV21;
+        if (cached != null && cached.length == width * height * 3 / 2) {
+            return cached;
         }
-
-        // Save current EGL state to restore it later
-        EGLContext oldContext = currentEgl.eglGetCurrentContext();
-        EGLDisplay oldDisplay = currentEgl.eglGetCurrentDisplay();
-        EGLSurface oldDrawSurface = currentEgl.eglGetCurrentSurface(EGL10.EGL_DRAW);
-        EGLSurface oldReadSurface = currentEgl.eglGetCurrentSurface(EGL10.EGL_READ);
-
-        try {
-            makeCurrent();
-
-            // onDrawFrame(NV21, width, height) → returns GL texture id
-            int texId = fuRenderer.onDrawFrame(nv21, width, height);
-
-            if (texId <= 0) return nv21;
-
-            // Read back RGBA from the GL texture via framebuffer
-            byte[] rgba = readPixelsFromTexture(texId, width, height);
-
-            // Convert RGBA back to NV21 (WebRTC expects NV21 for the pipe)
-            return rgbaToNV21(rgba, width, height);
-        } catch (Exception e) {
-            Log.e(TAG, "processNV21Frame error: " + e.getMessage());
-            return nv21;
-        } finally {
-            // Restore original EGL state (WebRTC's context)
-            if (oldDisplay != null && oldDrawSurface != null && oldReadSurface != null && oldContext != null) {
-                currentEgl.eglMakeCurrent(oldDisplay, oldDrawSurface, oldReadSurface, oldContext);
-            }
-            isProcessing.set(false);
-        }
+        return nv21;
     }
 
     // ─────────────────────────── Beauty Setters ────────────────────────────
 
-    /** Skin smoothing / blur (0.0 – 1.0) */
     public void setBlurLevel(float value) {
         blurLevel = value;
-        if (initialized.get() && fuRenderer != null) fuRenderer.onBlurLevelSelected(value);
+        if (fuHandler != null) fuHandler.post(() -> {
+            if (fuRenderer != null) fuRenderer.onBlurLevelSelected(value);
+        });
     }
 
-    /** Whitening / color level (0.0 – 1.0) */
     public void setColorLevel(float value) {
         colorLevel = value;
-        if (initialized.get() && fuRenderer != null) fuRenderer.onColorLevelSelected(value);
+        if (fuHandler != null) fuHandler.post(() -> {
+            if (fuRenderer != null) fuRenderer.onColorLevelSelected(value);
+        });
     }
 
-    /** Redness (0.0 – 1.0) */
     public void setRedLevel(float value) {
         redLevel = value;
-        if (initialized.get() && fuRenderer != null) fuRenderer.onRedLevelSelected(value);
+        if (fuHandler != null) fuHandler.post(() -> {
+            if (fuRenderer != null) fuRenderer.onRedLevelSelected(value);
+        });
     }
 
-    /** Eye enlarging (0.0 – 1.0) */
     public void setEyeEnlarging(float value) {
         eyeEnlarging = value;
-        if (initialized.get() && fuRenderer != null) fuRenderer.onEyeEnlargeSelected(value);
+        if (fuHandler != null) fuHandler.post(() -> {
+            if (fuRenderer != null) fuRenderer.onEyeEnlargeSelected(value);
+        });
     }
 
-    /** Cheek thinning / slim face (0.0 – 1.0) */
     public void setCheekThinning(float value) {
         cheekThinning = value;
-        if (initialized.get() && fuRenderer != null) fuRenderer.onCheekThinningSelected(value);
+        if (fuHandler != null) fuHandler.post(() -> {
+            if (fuRenderer != null) fuRenderer.onCheekThinningSelected(value);
+        });
     }
 
-    /** Eye brightening (0.0 – 1.0) */
     public void setEyeBright(float value) {
         eyeBright = value;
-        if (initialized.get() && fuRenderer != null) fuRenderer.onEyeBrightSelected(value);
+        if (fuHandler != null) fuHandler.post(() -> {
+            if (fuRenderer != null) fuRenderer.onEyeBrightSelected(value);
+        });
     }
 
-    /** Filter name (e.g. "origin", "bailiang1") */
     public void setFilterName(String name) {
         filterName = name;
-        if (initialized.get() && fuRenderer != null) fuRenderer.onFilterNameSelected(name);
+        if (fuHandler != null) fuHandler.post(() -> {
+            if (fuRenderer != null) fuRenderer.onFilterNameSelected(name);
+        });
     }
 
-    /** Filter intensity (0.0 – 1.0) */
     public void setFilterLevel(float value) {
         filterLevel = value;
-        if (initialized.get() && fuRenderer != null) fuRenderer.onFilterLevelSelected(value);
+        if (fuHandler != null) fuHandler.post(() -> {
+            if (fuRenderer != null) fuRenderer.onFilterLevelSelected(value);
+        });
     }
 
     // ─────────────────────────── Private Helpers ───────────────────────────
@@ -241,9 +266,6 @@ public class FlutterRTCFaceUnityBeauty {
         fuRenderer.onFilterLevelSelected(filterLevel);
     }
 
-    /**
-     * Read RGBA pixels from a GL texture by binding it to a framebuffer.
-     */
     private byte[] readPixelsFromTexture(int texId, int width, int height) {
         int[] fbo = new int[1];
         GLES20.glGenFramebuffers(1, fbo, 0);
@@ -266,9 +288,6 @@ public class FlutterRTCFaceUnityBeauty {
         return rgba;
     }
 
-    /**
-     * Convert RGBA byte array to NV21 (YUV420sp).
-     */
     private byte[] rgbaToNV21(byte[] rgba, int width, int height) {
         int frameSize = width * height;
         byte[] nv21 = new byte[frameSize * 3 / 2];
@@ -279,16 +298,16 @@ public class FlutterRTCFaceUnityBeauty {
         for (int j = 0; j < height; j++) {
             for (int i = 0; i < width; i++) {
                 int pix = (j * width + i) * 4;
-                int r = (rgba[pix] & 0xFF);
-                int g = (rgba[pix + 1] & 0xFF);
-                int b = (rgba[pix + 2] & 0xFF);
+                int r = rgba[pix]     & 0xFF;
+                int g = rgba[pix + 1] & 0xFF;
+                int b = rgba[pix + 2] & 0xFF;
 
                 int y = (int) (0.299 * r + 0.587 * g + 0.114 * b);
                 nv21[yIndex++] = (byte) Math.max(0, Math.min(255, y));
 
                 if (j % 2 == 0 && i % 2 == 0) {
-                    int v = (int) (0.5 * r - 0.419 * g - 0.081 * b + 128);
-                    int u = (int) (-0.169 * r - 0.331 * g + 0.5 * b + 128);
+                    int v = (int) ( 0.500 * r - 0.419 * g - 0.081 * b + 128);
+                    int u = (int) (-0.169 * r - 0.331 * g + 0.500 * b + 128);
                     nv21[uvIndex++] = (byte) Math.max(0, Math.min(255, v));
                     nv21[uvIndex++] = (byte) Math.max(0, Math.min(255, u));
                 }
@@ -307,7 +326,7 @@ public class FlutterRTCFaceUnityBeauty {
         return 270;
     }
 
-    // ─────────────────────────── EGL Management ────────────────────────────
+    // ─────────────────────── EGL — called only from fuThread ───────────────
 
     private void createEGLContext() {
         egl = (EGL10) EGLContext.getEGL();
@@ -315,23 +334,23 @@ public class FlutterRTCFaceUnityBeauty {
         egl.eglInitialize(eglDisplay, new int[2]);
 
         int[] attribList = {
-                EGL10.EGL_RED_SIZE, 8,
-                EGL10.EGL_GREEN_SIZE, 8,
-                EGL10.EGL_BLUE_SIZE, 8,
-                EGL10.EGL_ALPHA_SIZE, 8,
-                EGL10.EGL_RENDERABLE_TYPE, 4 /* EGL_OPENGL_ES2_BIT */,
+                EGL10.EGL_RED_SIZE,         8,
+                EGL10.EGL_GREEN_SIZE,       8,
+                EGL10.EGL_BLUE_SIZE,        8,
+                EGL10.EGL_ALPHA_SIZE,       8,
+                EGL10.EGL_RENDERABLE_TYPE,  4, /* EGL_OPENGL_ES2_BIT */
                 EGL10.EGL_NONE
         };
         EGLConfig[] configs = new EGLConfig[1];
         int[] numConfigs = new int[1];
         egl.eglChooseConfig(eglDisplay, attribList, configs, 1, numConfigs);
-        EGLConfig config = configs[0];
 
         int[] ctxAttribs = {0x3098 /* EGL_CONTEXT_CLIENT_VERSION */, 2, EGL10.EGL_NONE};
-        eglContext = egl.eglCreateContext(eglDisplay, config, EGL10.EGL_NO_CONTEXT, ctxAttribs);
+        eglContext = egl.eglCreateContext(
+                eglDisplay, configs[0], EGL10.EGL_NO_CONTEXT, ctxAttribs);
 
         int[] pbufAttribs = {EGL10.EGL_WIDTH, 1, EGL10.EGL_HEIGHT, 1, EGL10.EGL_NONE};
-        eglSurface = egl.eglCreatePbufferSurface(eglDisplay, config, pbufAttribs);
+        eglSurface = egl.eglCreatePbufferSurface(eglDisplay, configs[0], pbufAttribs);
     }
 
     private void makeCurrent() {
@@ -342,13 +361,11 @@ public class FlutterRTCFaceUnityBeauty {
 
     private void releaseEGLContext() {
         if (egl != null) {
-            egl.eglMakeCurrent(eglDisplay, EGL10.EGL_NO_SURFACE, EGL10.EGL_NO_SURFACE, EGL10.EGL_NO_CONTEXT);
+            egl.eglMakeCurrent(eglDisplay,
+                    EGL10.EGL_NO_SURFACE, EGL10.EGL_NO_SURFACE, EGL10.EGL_NO_CONTEXT);
             if (eglSurface != null) egl.eglDestroySurface(eglDisplay, eglSurface);
             if (eglContext != null) egl.eglDestroyContext(eglDisplay, eglContext);
             egl.eglTerminate(eglDisplay);
-            eglDisplay = null;
-            eglSurface = null;
-            eglContext = null;
             egl = null;
         }
     }

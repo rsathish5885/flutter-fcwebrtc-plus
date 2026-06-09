@@ -4,21 +4,33 @@ import org.webrtc.ExternalAudioProcessingFactory;
 
 public class AudioProcessingController {
     /**
-     * This is the audio processing module that will be applied to the audio stream after it is captured from the microphone.
-     * This is useful for adding echo cancellation, noise suppression, etc.
+     * Applied to the audio stream after microphone capture.
+     * RnNoiseSuppressor is registered here so it runs on every captured frame.
      */
     public final AudioProcessingAdapter capturePostProcessing = new AudioProcessingAdapter();
+
     /**
-     * This is the audio processing module that will be applied to the audio stream before it is rendered to the speaker.
+     * Applied to the audio stream before speaker render.
      */
     public final AudioProcessingAdapter renderPreProcessing = new AudioProcessingAdapter();
+
+    public final RnNoiseSuppressor noiseSuppressor = new RnNoiseSuppressor();
 
     public ExternalAudioProcessingFactory externalAudioProcessingFactory;
 
     public AudioProcessingController() {
-        this.externalAudioProcessingFactory = new ExternalAudioProcessingFactory();
-        this.externalAudioProcessingFactory.setCapturePostProcessing(capturePostProcessing);
-        this.externalAudioProcessingFactory.setRenderPreProcessing(renderPreProcessing);
+        externalAudioProcessingFactory = new ExternalAudioProcessingFactory();
+        capturePostProcessing.addProcessor(noiseSuppressor);
+        externalAudioProcessingFactory.setCapturePostProcessing(capturePostProcessing);
+        externalAudioProcessingFactory.setRenderPreProcessing(renderPreProcessing);
     }
-    
+
+    public void setNoiseSuppressionEnabled(boolean enabled) {
+        noiseSuppressor.setEnabled(enabled);
+    }
+
+    /** 1 = mild, 2 = moderate (default), 3 = aggressive */
+    public void setNoiseSuppressionLevel(int level) {
+        noiseSuppressor.setSuppressionLevel(level);
+    }
 }
