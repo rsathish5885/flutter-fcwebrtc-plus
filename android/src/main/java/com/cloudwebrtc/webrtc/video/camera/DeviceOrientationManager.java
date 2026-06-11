@@ -43,6 +43,36 @@ public class DeviceOrientationManager {
     this.sensorOrientation = sensorOrientation;
   }
 
+   
+  /**
+   * Returns the current rotation of the default display in degrees (0, 90, 180 or 270).
+   *
+   * <p>This mirrors the exact logic WebRTC's {@code CameraSession.getDeviceOrientation(Context)}
+   * uses to derive the rotation it bakes into every captured {@link org.webrtc.VideoFrame}. Reading
+   * it the same way (same {@link Context}, same {@link Display#getRotation()} mapping) lets callers
+   * cancel that term out to keep camera capture locked to portrait-up regardless of how the device
+   * is physically held.
+   */
+  @SuppressWarnings("deprecation")
+  public static int getDeviceRotationDegrees(@NonNull Context context) {
+    WindowManager wm = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
+    if (wm == null) {
+      return 0;
+    }
+    switch (wm.getDefaultDisplay().getRotation()) {
+      case Surface.ROTATION_90:
+        return 90;
+      case Surface.ROTATION_180:
+        return 180;
+      case Surface.ROTATION_270:
+        return 270;
+      case Surface.ROTATION_0:
+      default:
+        return 0;
+    }
+  }
+ 
+
   public void start() {
     if (broadcastReceiver != null) {
       return;

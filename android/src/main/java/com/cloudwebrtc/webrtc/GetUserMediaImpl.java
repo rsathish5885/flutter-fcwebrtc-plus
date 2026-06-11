@@ -829,6 +829,8 @@ public class GetUserMediaImpl {
 
         LocalVideoTrack localVideoTrack = new LocalVideoTrack(track);
         localVideoTrack.addProcessor(videoPipe);
+        // Lock capture orientation to portrait-up regardless of physical device rotation.
+        localVideoTrack.enablePortraitLock(applicationContext, isFacing);
         videoSource.setVideoProcessor(localVideoTrack);
 
         stateProvider.putLocalTrack(track.id(),localVideoTrack);
@@ -945,6 +947,11 @@ public class GetUserMediaImpl {
                             @Override
                             public void onCameraSwitchDone(boolean b) {
                                 isFacing = !isFacing;
+                                // Keep the portrait-up lock aligned with the new camera facing.
+                                LocalTrack switchedTrack = stateProvider.getLocalTrack(id);
+                                if (switchedTrack instanceof LocalVideoTrack) {
+                                    ((LocalVideoTrack) switchedTrack).setFrontFacing(b);
+                                }
                                 result.success(b);
                             }
 
