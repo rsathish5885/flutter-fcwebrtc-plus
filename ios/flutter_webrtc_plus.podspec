@@ -12,17 +12,7 @@ A new flutter plugin project.
   s.license          = { :file => '../LICENSE' }
   s.author           = { 'CloudWebRTC' => 'duanweiwei1982@gmail.com' }
   s.source           = { :path => '.' }
-  s.prepare_command = <<-CMD
-    if [ ! -d "Classes/rnnoise" ]; then
-      git clone --depth=1 https://github.com/xiph/rnnoise.git /tmp/rnnoise_pod_build
-      mkdir -p Classes/rnnoise
-      cp /tmp/rnnoise_pod_build/src/*.c /tmp/rnnoise_pod_build/src/*.h Classes/rnnoise/
-      cp /tmp/rnnoise_pod_build/include/rnnoise.h Classes/rnnoise/
-      rm -rf /tmp/rnnoise_pod_build
-    fi
-  CMD
-
-  s.source_files = 'Classes/**/*.{h,m,mm,swift,c,cpp}'
+  s.source_files = 'Classes/**/*'
   s.public_header_files = 'Classes/**/*.h'
   s.exclude_files = [
     'Classes/FaceUnity/FUManager.*',
@@ -36,8 +26,7 @@ A new flutter plugin project.
   s.static_framework = true
   s.pod_target_xcconfig = {
     'CLANG_CXX_LANGUAGE_STANDARD' => 'c++14',
-    'USER_HEADER_SEARCH_PATHS' => '"$(PODS_TARGET_SRCROOT)/Classes" "$(PODS_TARGET_SRCROOT)/Classes/rnnoise" "$(PODS_TARGET_SRCROOT)/Classes/FaceUnity" "$(PODS_TARGET_SRCROOT)/../common/darwin/Classes"',
-    'OTHER_CFLAGS' => '-DOUTSIDE_SPEEX -DRANDOM_PREFIX=rnnoise',
+    'USER_HEADER_SEARCH_PATHS' => '"$(PODS_TARGET_SRCROOT)/Classes" "$(PODS_TARGET_SRCROOT)/Classes/FaceUnity" "$(PODS_TARGET_SRCROOT)/../common/darwin/Classes"',
     'FRAMEWORK_SEARCH_PATHS' => '$(inherited)'
   }
   s.libraries = 'c++'

@@ -93,8 +93,11 @@ NSArray<RTC_OBJC_TYPE(RTCVideoCodecInfo) *>* motifyH264ProfileLevelId(
 @end
 
 void postEvent(FlutterEventSink _Nonnull sink, id _Nullable event) {
+    FlutterEventSink sinkCopy = [sink copy];
     dispatch_async(dispatch_get_main_queue(), ^{
-      sink(event);
+      if (sinkCopy) {
+        sinkCopy(event);
+      }
     });
 }
 
@@ -255,10 +258,12 @@ static FlutterWebRTCPlugin *sharedSingleton;
   if(loggerCallback == nil) {
     loggerCallback = [RTC_OBJC_TYPE(RTCCallbackLogger) new];
     [loggerCallback start:^(NSString *logMessage) {
-      postEvent(self.eventSink, @{
-        @"event" : @"onLogData",
-        @"data" : logMessage
-      });
+      if (self.eventSink) {
+        postEvent(self.eventSink, @{
+          @"event" : @"onLogData",
+          @"data" : logMessage
+        });
+      }
     }];
   }
 
@@ -1118,18 +1123,10 @@ static FlutterWebRTCPlugin *sharedSingleton;
           result([FlutterError errorWithCode:@"INVALID_ARGUMENT" message:@"FaceUnity key is missing or invalid" details:nil]);
       }
   } else if([@"setNoiseSuppressionEnabled" isEqualToString:call.method]) {
-      NSDictionary *arguments = call.arguments;
-      NSNumber *enabled = arguments[@"enabled"];
-      if (enabled != nil) {
-          _audioManager.noiseSuppressor.enabled = [enabled boolValue];
-      }
+     
       result(nil);
   } else if([@"setNoiseSuppressionLevel" isEqualToString:call.method]) {
-      NSDictionary *arguments = call.arguments;
-      NSNumber *level = arguments[@"level"];
-      if (level != nil) {
-          [_audioManager.noiseSuppressor setSuppressionLevel:[level intValue]];
-      }
+     
       result(nil);
   } else if([@"releaseFaceUnity" isEqualToString:call.method]) {
       [self setUseFaceUnity:NO];
