@@ -40,7 +40,6 @@
 @implementation FlutterWebRTCPlugin (RTCMediaStream)
 
 RTCVideoPipe* videoPipe;
-RTCVirtualBackground* virtualBackground;
 
 /**
  * {@link https://www.w3.org/TR/mediacapture-streams/#navigatorusermediaerrorcallback}
@@ -183,10 +182,6 @@ typedef void (^NavigatorUserMediaSuccessCallback)(RTCMediaStream* mediaStream);
   [self ensureAudioSession];
 
   successCallback(mediaStream);
-}
-
-- (void)setBackgroundImage:(CIImage *_Nullable)backgroundImage {
-    [videoPipe setBackgroundImageWithImage:backgroundImage];
 }
 
 - (void)setThinValue:(CGFloat)value {
@@ -532,13 +527,9 @@ typedef void (^NavigatorUserMediaSuccessCallback)(RTCMediaStream* mediaStream);
   }
 
   if (videoDevice) {
-      if (virtualBackground == nil) {
-          virtualBackground = [[RTCVirtualBackground alloc] init];
-      }
-      
     RTCVideoSource* videoSource = [self.peerConnectionFactory videoSource];
-              
-      videoPipe = [[RTCVideoPipe alloc] initWithVideoSource:videoSource virtualBackground:virtualBackground];
+
+      videoPipe = [[RTCVideoPipe alloc] initWithVideoSource:videoSource];
 #if TARGET_OS_OSX
     if (self.videoCapturer) {
       [self.videoCapturer stopCapture];

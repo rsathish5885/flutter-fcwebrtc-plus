@@ -22,8 +22,6 @@
 - (void)selectAudioOutput:(nonnull NSString*)deviceId result:(nullable FlutterResult)result;
 
 
-- (void)setBackgroundImage:(CIImage *_Nullable)backgroundImage;
-
 - (void)setThinValue:(CGFloat)value;
 - (void)setRedValue:(CGFloat)value;
 - (void)setSmoothValue:(CGFloat)value;

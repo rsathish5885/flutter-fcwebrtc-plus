@@ -754,7 +754,6 @@ public class GetUserMediaImpl {
         PeerConnectionFactory pcFactory = stateProvider.getPeerConnectionFactory();
         VideoSource videoSource = pcFactory.createVideoSource(false);
 
-        // Initial RTCVirtualBackground
         videoPipe.initialize(applicationContext);
 
         String threadName = Thread.currentThread().getName() + "_texture_camera_thread";

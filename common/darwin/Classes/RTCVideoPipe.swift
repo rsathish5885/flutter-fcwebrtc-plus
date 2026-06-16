@@ -11,32 +11,23 @@ import WebRTC
 @objc public class RTCVideoPipe: NSObject, RTCVideoCapturerDelegate {
     var beautyFilter: RTCBeautyFilter?
     var videoSource: RTCVideoSource?
-    var virtualBackground: RTCVirtualBackground?
-    var backgroundImage: CIImage?
     var lastFrameTimestamp: Int64 = 0
     let targetFrameDurationNs: Int64 = Int64(1_000_000_000 / 24) // 24fps
     weak var rtcVideoCapturer: RTCVideoCapturer?
-    
-    @objc public init(videoSource: RTCVideoSource, virtualBackground: RTCVirtualBackground) {
+
+    @objc public init(videoSource: RTCVideoSource) {
         super.init()
         self.videoSource = videoSource
-        self.virtualBackground = virtualBackground
         self.beautyFilter = RTCBeautyFilter()
     }
-    
+
     deinit {
         self.beautyFilter?.releaseInstance()
         self.beautyFilter = nil
         self.videoSource = nil
-        self.virtualBackground = nil
-        self.backgroundImage = nil
         self.rtcVideoCapturer = nil
     }
-    
-    @objc public func setBackgroundImage(image: CIImage?) {
-        self.backgroundImage = image
-    }
-    
+
     @objc public func capturer(_ capturer: RTCVideoCapturer, didCapture frame: RTCVideoFrame) {
         self.rtcVideoCapturer = capturer
         
@@ -74,33 +65,11 @@ import WebRTC
     }
     
     private func handleProcessedFrame(_ pixelBuffer: CVPixelBuffer, capturer: RTCVideoCapturer) {
-        if backgroundImage == nil {
-            // No background image, send frame directly
-            let timestampNs = DispatchTime.now().uptimeNanoseconds
-            
-            guard let frame: RTCVideoFrame = pixelBuffer.convertPixelBufferToRTCVideoFrame(rotation: RTCVideoRotation._0, timeStampNs: Int64(timestampNs)) else {
-                return
-            }
-            
-            self.videoSource?.capturer(capturer, didCapture: frame)
+        let timestampNs = DispatchTime.now().uptimeNanoseconds
+        guard let frame: RTCVideoFrame = pixelBuffer.convertPixelBufferToRTCVideoFrame(rotation: RTCVideoRotation._0, timeStampNs: Int64(timestampNs)) else {
             return
         }
-        
-        // Process with virtual background
-        virtualBackground?.processForegroundMask(from: pixelBuffer, backgroundImage: backgroundImage!) { bufferProcessed, error in
-            if let error = error {
-                // Handle error
-                print("Error processing foreground mask: \(error.localizedDescription)")
-            } else if let bufferProcessed = bufferProcessed {
-                let timestampNs = DispatchTime.now().uptimeNanoseconds
-                
-                guard let frame: RTCVideoFrame = bufferProcessed.convertPixelBufferToRTCVideoFrame(rotation: RTCVideoRotation._0, timeStampNs: Int64(timestampNs)) else {
-                    return
-                }
-                
-                self.videoSource?.capturer(capturer, didCapture: frame)
-            }
-        }
+        self.videoSource?.capturer(capturer, didCapture: frame)
     }
     
     @objc public func setThinFaceValue(value: CGFloat) {

@@ -11,7 +11,6 @@ buildscript {
     dependencies {
         classpath 'com.android.tools.build:gradle:7.4.2'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        classpath 'de.undercouch:gradle-download-task:4.1.2'
     }
 }
 
@@ -25,7 +24,6 @@ rootProject.allprojects {
 
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
-apply plugin: 'de.undercouch.download'
 
 android {
     if (project.android.hasProperty("namespace")) {
@@ -93,19 +91,7 @@ android {
         }
     }
 
-    // Specify tflite file should not be compressed for the app apk
-    aaptOptions {
-        noCompress "tflite"
-    }
 }
-
-// import DownloadModels task
-project.ext.ASSET_DIR = projectDir.toString() + '/src/main/assets'
-project.ext.TEST_ASSETS_DIR = projectDir.toString() + '/src/androidTest/assets'
-
-// Download default models; if you wish to use your own models then
-// place them in the "assets" directory and comment out this line.
-apply from: 'download_models.gradle'
 
 configurations.all {
     exclude group: 'com.faceunity', module: 'core'
@@ -119,12 +105,6 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3"
     implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.21"
-
-    // ML Kit
-    //noinspection GradleDependency
-    implementation 'com.google.mediapipe:tasks-vision:0.10.11'
-    implementation 'com.google.android.gms:play-services-tflite-java:16.1.0'
-    implementation 'com.google.android.gms:play-services-tflite-gpu:16.2.0'
 
     // Beauty Filters — FaceUnity
     // We use compileOnly because nertc_faceunity (or other plugins) may also provide these
