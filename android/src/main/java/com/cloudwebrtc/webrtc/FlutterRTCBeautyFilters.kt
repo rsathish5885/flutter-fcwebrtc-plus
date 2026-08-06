@@ -21,8 +21,13 @@ class FlutterRTCBeautyFilters(context: Context) {
     internal val fuBeauty = FlutterRTCFaceUnityBeauty(context)
 
     init {
+        // Start file logger before anything else so init errors are captured
+        BeautyLogger.init(context)
+        BeautyLogger.log("FlutterRTCBeautyFilters: init started")
+
         // Initialize with embedded auth key from authpack
         val key = com.cloudwebrtc.faceunity.authpack.A()
+        BeautyLogger.log("FlutterRTCBeautyFilters: authpack key length=${key.size}")
         fuBeauty.initialize(key)
     }
 

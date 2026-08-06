@@ -418,6 +418,7 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
       case "setThinValue":{
         double value = call.argument("value");
         float floatValue = (float) value;
+        BeautyLogger.log("MethodCall: setThinValue=" + floatValue + " | videoPipe=" + (videoPipe != null));
         videoPipe.setThinValue(floatValue);
         result.success(true);
         break;
@@ -425,6 +426,7 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
       case "setRedValue":{
         double value = call.argument("value");
         float floatValue = (float) value;
+        BeautyLogger.log("MethodCall: setRedValue=" + floatValue + " | videoPipe=" + (videoPipe != null));
         videoPipe.setRedValue(floatValue);
         result.success(true);
         break;
@@ -432,6 +434,7 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
       case "setBigEyeValue":{
         double value = call.argument("value");
         float floatValue = (float) value;
+        BeautyLogger.log("MethodCall: setBigEyeValue=" + floatValue + " | videoPipe=" + (videoPipe != null));
         videoPipe.setBigEyesValue(floatValue);
         result.success(true);
         break;
@@ -439,6 +442,7 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
       case "setSmoothValue":{
         double value = call.argument("value");
         float floatValue = (float) value;
+        BeautyLogger.log("MethodCall: setSmoothValue=" + floatValue + " | videoPipe=" + (videoPipe != null));
         videoPipe.setBeautyValue(floatValue);
         result.success(true);
         break;
@@ -446,6 +450,7 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
       case "setLipstickValue":{
         double value = call.argument("value");
         float floatValue = (float) value;
+        BeautyLogger.log("MethodCall: setLipstickValue=" + floatValue + " | videoPipe=" + (videoPipe != null));
         videoPipe.setLipstickValue(floatValue);
         result.success(true);
         break;
@@ -453,19 +458,21 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
       case "setWhiteValue":{
         double value = call.argument("value");
         float floatValue = (float) value;
+        BeautyLogger.log("MethodCall: setWhiteValue=" + floatValue + " | videoPipe=" + (videoPipe != null));
         videoPipe.setWhiteValue(floatValue);
         result.success(true);
         break;
       }
       case "setBlusherValue":{
-//        double value = call.argument("value");
-//        float floatValue = (float) value;
+        // NOTE: blusher is currently NOT forwarded to videoPipe (commented out) — logged so we know it arrived
+        BeautyLogger.warn("MethodCall: setBlusherValue received but NOT implemented — call is no-op");
         result.success(true);
         break;
       }
       case "setEyeBrightValue":{
         double value = call.argument("value");
         float floatValue = (float) value;
+        BeautyLogger.log("MethodCall: setEyeBrightValue=" + floatValue + " | videoPipe=" + (videoPipe != null));
         videoPipe.setEyeBrightValue(floatValue);
         result.success(true);
         break;
@@ -473,62 +480,76 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
       case "setFilterLevel":{
         double value = call.argument("value");
         float floatValue = (float) value;
+        BeautyLogger.log("MethodCall: setFilterLevel=" + floatValue + " | videoPipe=" + (videoPipe != null));
         videoPipe.setFilterLevel(floatValue);
         result.success(true);
         break;
       }
       case "setFilterName":{
         String name = call.argument("name");
+        BeautyLogger.log("MethodCall: setFilterName=" + name + " | videoPipe=" + (videoPipe != null));
         videoPipe.setFilterName(name);
         result.success(true);
         break;
       }
       case "setBeautyParams": {
           Map<String, Object> params = call.argument("params");
- 
+          BeautyLogger.log("MethodCall: setBeautyParams | params=" + (params != null ? params.toString() : "null")
+                  + " | videoPipe=" + (videoPipe != null));
+
           if (params != null) {
- 
+
               if (params.containsKey("Cheek Thinning")) {
                   double value = ((Number) params.get("Cheek Thinning")).doubleValue();
+                  BeautyLogger.log("  setBeautyParams -> setThinValue=" + value);
                   videoPipe.setThinValue((float) value);
               }
- 
+
               if (params.containsKey("RedLevel")) {
                   double value = ((Number) params.get("RedLevel")).doubleValue();
+                  BeautyLogger.log("  setBeautyParams -> setRedValue=" + value);
                   videoPipe.setRedValue((float) value);
               }
- 
+
               if (params.containsKey("Eye Enlarging")) {
                   double value = ((Number) params.get("Eye Enlarging")).doubleValue();
+                  BeautyLogger.log("  setBeautyParams -> setBigEyesValue=" + value);
                   videoPipe.setBigEyesValue((float) value);
               }
- 
+
               if (params.containsKey("Microdermabrasion")) {
                   double value = ((Number) params.get("Microdermabrasion")).doubleValue();
+                  BeautyLogger.log("  setBeautyParams -> setBeautyValue(smooth)=" + value);
                   videoPipe.setBeautyValue((float) value);
               }
- 
+
               if (params.containsKey("lipstick")) {
                   double value = ((Number) params.get("lipstick")).doubleValue();
+                  BeautyLogger.log("  setBeautyParams -> setLipstickValue=" + value);
                   videoPipe.setLipstickValue((float) value);
               }
- 
+
               if (params.containsKey("Whiten")) {
                   double value = ((Number) params.get("Whiten")).doubleValue();
+                  BeautyLogger.log("  setBeautyParams -> setWhiteValue=" + value);
                   videoPipe.setWhiteValue((float) value);
               }
- 
+
               if (params.containsKey("Eye Bright")) {
                   double value = ((Number) params.get("Eye Bright")).doubleValue();
+                  BeautyLogger.log("  setBeautyParams -> setEyeBrightValue=" + value);
                   videoPipe.setEyeBrightValue((float) value);
               }
- 
+
               if (params.containsKey("Filter Level")) {
                   double value = ((Number) params.get("Filter Level")).doubleValue();
+                  BeautyLogger.log("  setBeautyParams -> setFilterLevel=" + value);
                   videoPipe.setFilterLevel((float) value);
               }
+          } else {
+              BeautyLogger.warn("setBeautyParams: params map is null — nothing applied");
           }
- 
+
           result.success(true);
           break;
       }
@@ -650,6 +671,10 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
             videoPipe.releaseBeautyEngine();
         }
         result.success(null);
+        break;
+      }
+      case "getBeautyLogPath": {
+        result.success(BeautyLogger.getLogFilePath());
         break;
       }
       case "setNoiseSuppressionEnabled": {

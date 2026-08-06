@@ -299,6 +299,14 @@ class Helper {
     await WebRTC.invokeMethod("setBeautyParams", {"params": params});
   }
 
+  /// Returns the path of the beauty debug log file written by the Android
+  /// native layer. Use this to share/upload the log file to the developer.
+  /// Returns null on non-Android platforms.
+  static Future<String?> getBeautyLogPath() async {
+    if (!platformSupportsNativeBeauty) return null;
+    return WebRTC.invokeMethod<String, void>("getBeautyLogPath");
+  }
+
   static bool get platformSupportsNativeBeauty => !WebRTC.platformIsWeb;
 
   @Deprecated('Use platformSupportsNativeBeauty instead.')

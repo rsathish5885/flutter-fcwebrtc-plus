@@ -14,6 +14,7 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.microedition.khronos.egl.EGL10;
 import javax.microedition.khronos.egl.EGLConfig;
@@ -63,6 +64,13 @@ public class FlutterRTCFaceUnityBeauty {
     private volatile String filterName   = "origin";
     private volatile float filterLevel   = 0.5f;
 
+    // Frame-error throttle: log at most once every 100 frames to avoid flooding the file
+    private final AtomicInteger frameErrorCount   = new AtomicInteger(0);
+    private final AtomicInteger busySkipCount     = new AtomicInteger(0); // frames skipped because GL thread was busy
+    private final AtomicInteger cacheNullCount    = new AtomicInteger(0); // frames where cache was null (no result yet)
+    private final AtomicInteger cacheMismatchCount= new AtomicInteger(0); // frames where cache size didn't match
+    private static final int FRAME_ERROR_LOG_INTERVAL = 100;
+
     public FlutterRTCFaceUnityBeauty(Context context) {
         this.context = context;
     }
@@ -70,6 +78,7 @@ public class FlutterRTCFaceUnityBeauty {
     // ─────────────────────────── Init / Release ────────────────────────────
 
     public synchronized void initialize(byte[] beautyKey) {
+        BeautyLogger.log("initialize() called | alreadyInit=" + initialized.get());
         if (initialized.get()) return;
 
         fuThread = new HandlerThread("FaceUnity-GL");
@@ -79,33 +88,46 @@ public class FlutterRTCFaceUnityBeauty {
         CountDownLatch latch = new CountDownLatch(1);
         fuHandler.post(() -> {
             try {
-                if (!FURenderer.isLibInit()) {
+                boolean libAlreadyInit = FURenderer.isLibInit();
+                BeautyLogger.log("FURenderer.isLibInit()=" + libAlreadyInit);
+
+                if (!libAlreadyInit) {
+                    BeautyLogger.log("Calling FURenderer.initFURenderer...");
                     FURenderer.initFURenderer(context, beautyKey);
+                    BeautyLogger.log("FURenderer.initFURenderer done");
                 }
 
+                BeautyLogger.log("Creating EGL context...");
                 createEGLContext();
+                BeautyLogger.log("EGL context created — eglContext=" + eglContext
+                        + " eglSurface=" + eglSurface);
+
                 // Make context current once — it stays current on fuThread forever.
-                // No makeCurrent/release per-frame: fuThread is dedicated and never
-                // runs any other EGL code, so the context is always available.
                 makeCurrent();
+                BeautyLogger.log("EGL makeCurrent done");
 
                 new Thread(() -> FileUtils.copyAssetsChangeFaceTemplate(context)).start();
 
+                int cameraOrientation = getCameraOrientation(Camera.CameraInfo.CAMERA_FACING_FRONT);
+                BeautyLogger.log("Camera orientation (front)=" + cameraOrientation);
+
                 fuRenderer = new FURenderer.Builder(context)
                         .maxFaces(1)
-                        .inputImageOrientation(
-                                getCameraOrientation(Camera.CameraInfo.CAMERA_FACING_FRONT))
+                        .inputImageOrientation(cameraOrientation)
                         .inputTextureType(0)      // CPU NV21 input
                         .createEGLContext(false)  // we own the EGL context
                         .build();
 
+                BeautyLogger.log("FURenderer built, calling onSurfaceCreated...");
                 fuRenderer.onSurfaceCreated();
                 fuRenderer.setBeautificationOn(true);
                 applyBeautyParams();
 
                 initialized.set(true);
+                BeautyLogger.log("FaceUnity initialized successfully ✓");
                 Log.i(TAG, "FaceUnity initialized successfully");
             } catch (Exception e) {
+                BeautyLogger.error("FaceUnity initialization FAILED: " + e.getMessage(), e);
                 Log.e(TAG, "FaceUnity initialization failed: " + e.getMessage(), e);
             } finally {
                 latch.countDown();
@@ -113,10 +135,13 @@ public class FlutterRTCFaceUnityBeauty {
         });
 
         try {
-            if (!latch.await(5, TimeUnit.SECONDS)) {
+            boolean completed = latch.await(5, TimeUnit.SECONDS);
+            if (!completed) {
+                BeautyLogger.error("FaceUnity initialization TIMED OUT after 5s");
                 Log.e(TAG, "FaceUnity initialization timed out");
             }
         } catch (InterruptedException e) {
+            BeautyLogger.error("FaceUnity initialization interrupted", e);
             Thread.currentThread().interrupt();
         }
     }
@@ -126,6 +151,7 @@ public class FlutterRTCFaceUnityBeauty {
     }
 
     public synchronized void release(boolean hardReset) {
+        BeautyLogger.log("release(hardReset=" + hardReset + ") | initialized=" + initialized.get());
         if (!initialized.get()) return;
         initialized.set(false);
 
@@ -141,7 +167,9 @@ public class FlutterRTCFaceUnityBeauty {
                         FURenderer.destroyLibData();
                     }
                     releaseEGLContext();
+                    BeautyLogger.log("release complete (hardReset=" + hardReset + ")");
                 } catch (Exception e) {
+                    BeautyLogger.error("release error", e);
                     Log.e(TAG, "Release error: " + e.getMessage());
                 } finally {
                     latch.countDown();
@@ -163,10 +191,17 @@ public class FlutterRTCFaceUnityBeauty {
     // ─────────────────────────── Frame Processing ──────────────────────────
 
     public byte[] processNV21Frame(byte[] nv21, int width, int height) {
-        if (!initialized.get() || fuHandler == null) return nv21;
+        if (!initialized.get() || fuHandler == null) {
+            // Log once when beauty is called but not initialized
+            if (frameErrorCount.getAndIncrement() % FRAME_ERROR_LOG_INTERVAL == 0) {
+                BeautyLogger.warn("processNV21Frame: beauty not ready"
+                        + " | initialized=" + initialized.get()
+                        + " | fuHandler=" + (fuHandler != null)
+                        + " | frame#" + frameErrorCount.get());
+            }
+            return nv21;
+        }
 
-        // If FaceUnity is free, submit this frame for async processing.
-        // The capture thread never blocks — it returns the cached result immediately.
         if (isProcessing.compareAndSet(false, true)) {
             fuHandler.post(() -> {
                 try {
@@ -174,88 +209,146 @@ public class FlutterRTCFaceUnityBeauty {
                     if (texId > 0) {
                         byte[] rgba = readPixelsFromTexture(texId, width, height);
                         cachedBeautyNV21 = rgbaToNV21(rgba, width, height);
+                    } else {
+                        // texId <= 0 — FaceUnity returned no output (auth fail, GPU issue, etc.)
+                        int errN = frameErrorCount.getAndIncrement();
+                        if (errN % FRAME_ERROR_LOG_INTERVAL == 0) {
+                            BeautyLogger.warn("onDrawFrame returned texId=" + texId
+                                    + " | size=" + width + "x" + height
+                                    + " | texId=0 count=" + errN
+                                    + " | busySkips=" + busySkipCount.get()
+                                    + " | cacheMismatches=" + cacheMismatchCount.get());
+                        }
                     }
                 } catch (Exception e) {
+                    BeautyLogger.error("processNV21Frame exception | size=" + width + "x" + height, e);
                     Log.e(TAG, "processNV21Frame error: " + e.getMessage());
                 } finally {
                     isProcessing.set(false);
                 }
             });
+        } else {
+            // GL thread is still processing previous frame — this frame is skipped
+            int skips = busySkipCount.incrementAndGet();
+            if (skips % FRAME_ERROR_LOG_INTERVAL == 0) {
+                BeautyLogger.warn("processNV21Frame: GL thread BUSY, frame skipped"
+                        + " | totalBusySkips=" + skips
+                        + " | size=" + width + "x" + height
+                        + " — if this is high, GL thread is too slow for camera FPS");
+            }
         }
 
-        // Return the latest cached beauty result (one frame behind at most).
-        // Guard: only use the cache if it matches the current frame's dimensions —
-        // a mismatch means the camera resolution or rotation changed, which would cause
-        // an IndexOutOfBoundsException in the NV21→VideoFrame conversion.
         byte[] cached = cachedBeautyNV21;
-        if (cached != null && cached.length == width * height * 3 / 2) {
-            return cached;
+        if (cached == null) {
+            int nullN = cacheNullCount.incrementAndGet();
+            if (nullN % FRAME_ERROR_LOG_INTERVAL == 0) {
+                BeautyLogger.warn("processNV21Frame: cachedBeautyNV21 is still null after " + nullN
+                        + " frames — FaceUnity has not produced any output yet"
+                        + " | busySkips=" + busySkipCount.get());
+            }
+            return nv21;
         }
-        return nv21;
+        if (cached.length != width * height * 3 / 2) {
+            int mismatch = cacheMismatchCount.incrementAndGet();
+            if (mismatch % FRAME_ERROR_LOG_INTERVAL == 0) {
+                BeautyLogger.warn("processNV21Frame: cache size MISMATCH"
+                        + " | cached=" + cached.length
+                        + " expected=" + (width * height * 3 / 2)
+                        + " | size=" + width + "x" + height
+                        + " | mismatchCount=" + mismatch
+                        + " — resolution changed, waiting for new cache");
+            }
+            return nv21;
+        }
+        return cached;
     }
 
     // ─────────────────────────── Beauty Setters ────────────────────────────
 
     public void setBlurLevel(float value) {
+        BeautyLogger.log("setBlurLevel(" + value + ") | fuHandler=" + (fuHandler != null));
         blurLevel = value;
         if (fuHandler != null) fuHandler.post(() -> {
             if (fuRenderer != null) fuRenderer.onBlurLevelSelected(value);
+            else BeautyLogger.warn("setBlurLevel: fuRenderer is null");
         });
     }
 
     public void setColorLevel(float value) {
+        BeautyLogger.log("setColorLevel(" + value + ") | fuHandler=" + (fuHandler != null));
         colorLevel = value;
         if (fuHandler != null) fuHandler.post(() -> {
             if (fuRenderer != null) fuRenderer.onColorLevelSelected(value);
+            else BeautyLogger.warn("setColorLevel: fuRenderer is null");
         });
     }
 
     public void setRedLevel(float value) {
+        BeautyLogger.log("setRedLevel(" + value + ") | fuHandler=" + (fuHandler != null));
         redLevel = value;
         if (fuHandler != null) fuHandler.post(() -> {
             if (fuRenderer != null) fuRenderer.onRedLevelSelected(value);
+            else BeautyLogger.warn("setRedLevel: fuRenderer is null");
         });
     }
 
     public void setEyeEnlarging(float value) {
+        BeautyLogger.log("setEyeEnlarging(" + value + ") | fuHandler=" + (fuHandler != null));
         eyeEnlarging = value;
         if (fuHandler != null) fuHandler.post(() -> {
             if (fuRenderer != null) fuRenderer.onEyeEnlargeSelected(value);
+            else BeautyLogger.warn("setEyeEnlarging: fuRenderer is null");
         });
     }
 
     public void setCheekThinning(float value) {
+        BeautyLogger.log("setCheekThinning(" + value + ") | fuHandler=" + (fuHandler != null));
         cheekThinning = value;
         if (fuHandler != null) fuHandler.post(() -> {
             if (fuRenderer != null) fuRenderer.onCheekThinningSelected(value);
+            else BeautyLogger.warn("setCheekThinning: fuRenderer is null");
         });
     }
 
     public void setEyeBright(float value) {
+        BeautyLogger.log("setEyeBright(" + value + ") | fuHandler=" + (fuHandler != null));
         eyeBright = value;
         if (fuHandler != null) fuHandler.post(() -> {
             if (fuRenderer != null) fuRenderer.onEyeBrightSelected(value);
+            else BeautyLogger.warn("setEyeBright: fuRenderer is null");
         });
     }
 
     public void setFilterName(String name) {
+        BeautyLogger.log("setFilterName(" + name + ") | fuHandler=" + (fuHandler != null));
         filterName = name;
         if (fuHandler != null) fuHandler.post(() -> {
             if (fuRenderer != null) fuRenderer.onFilterNameSelected(name);
+            else BeautyLogger.warn("setFilterName: fuRenderer is null");
         });
     }
 
     public void setFilterLevel(float value) {
+        BeautyLogger.log("setFilterLevel(" + value + ") | fuHandler=" + (fuHandler != null));
         filterLevel = value;
         if (fuHandler != null) fuHandler.post(() -> {
             if (fuRenderer != null) fuRenderer.onFilterLevelSelected(value);
+            else BeautyLogger.warn("setFilterLevel: fuRenderer is null");
         });
     }
 
     // ─────────────────────────── Private Helpers ───────────────────────────
 
     private void applyBeautyParams() {
-        if (fuRenderer == null) return;
+        if (fuRenderer == null) {
+            BeautyLogger.warn("applyBeautyParams: fuRenderer is null");
+            return;
+        }
+        BeautyLogger.log("applyBeautyParams: blur=" + blurLevel
+                + " color=" + colorLevel + " red=" + redLevel
+                + " eye=" + eyeEnlarging + " cheek=" + cheekThinning
+                + " eyeBright=" + eyeBright
+                + " filter=" + filterName + "@" + filterLevel);
         fuRenderer.onBlurLevelSelected(blurLevel);
         fuRenderer.onColorLevelSelected(colorLevel);
         fuRenderer.onRedLevelSelected(redLevel);
@@ -276,8 +369,20 @@ public class FlutterRTCFaceUnityBeauty {
                 GLES20.GL_TEXTURE_2D,
                 texId, 0);
 
+        int status = GLES20.glCheckFramebufferStatus(GLES20.GL_FRAMEBUFFER);
+        if (status != GLES20.GL_FRAMEBUFFER_COMPLETE) {
+            BeautyLogger.error("readPixelsFromTexture: FBO incomplete, status=0x"
+                    + Integer.toHexString(status));
+        }
+
         ByteBuffer buf = ByteBuffer.allocateDirect(width * height * 4);
         GLES20.glReadPixels(0, 0, width, height, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf);
+
+        int glErr = GLES20.glGetError();
+        if (glErr != GLES20.GL_NO_ERROR) {
+            BeautyLogger.error("glReadPixels error=0x" + Integer.toHexString(glErr)
+                    + " | size=" + width + "x" + height);
+        }
 
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
         GLES20.glDeleteFramebuffers(1, fbo, 0);
@@ -319,10 +424,12 @@ public class FlutterRTCFaceUnityBeauty {
     private int getCameraOrientation(int cameraFacing) {
         Camera.CameraInfo info = new Camera.CameraInfo();
         int numCameras = Camera.getNumberOfCameras();
+        BeautyLogger.log("getCameraOrientation: numCameras=" + numCameras);
         for (int i = 0; i < numCameras; i++) {
             Camera.getCameraInfo(i, info);
             if (info.facing == cameraFacing) return info.orientation;
         }
+        BeautyLogger.warn("getCameraOrientation: front camera not found, defaulting to 270");
         return 270;
     }
 
@@ -331,7 +438,10 @@ public class FlutterRTCFaceUnityBeauty {
     private void createEGLContext() {
         egl = (EGL10) EGLContext.getEGL();
         eglDisplay = egl.eglGetDisplay(EGL10.EGL_DEFAULT_DISPLAY);
-        egl.eglInitialize(eglDisplay, new int[2]);
+
+        int[] version = new int[2];
+        boolean initOk = egl.eglInitialize(eglDisplay, version);
+        BeautyLogger.log("eglInitialize ok=" + initOk + " version=" + version[0] + "." + version[1]);
 
         int[] attribList = {
                 EGL10.EGL_RED_SIZE,         8,
@@ -343,19 +453,51 @@ public class FlutterRTCFaceUnityBeauty {
         };
         EGLConfig[] configs = new EGLConfig[1];
         int[] numConfigs = new int[1];
-        egl.eglChooseConfig(eglDisplay, attribList, configs, 1, numConfigs);
+        boolean chooseOk = egl.eglChooseConfig(eglDisplay, attribList, configs, 1, numConfigs);
+        BeautyLogger.log("eglChooseConfig ok=" + chooseOk + " numConfigs=" + numConfigs[0]);
+
+        if (numConfigs[0] == 0) {
+            BeautyLogger.error("eglChooseConfig: no EGL configs found — GPU may not support ES2");
+        }
 
         int[] ctxAttribs = {0x3098 /* EGL_CONTEXT_CLIENT_VERSION */, 2, EGL10.EGL_NONE};
         eglContext = egl.eglCreateContext(
                 eglDisplay, configs[0], EGL10.EGL_NO_CONTEXT, ctxAttribs);
 
+        int eglErr = egl.eglGetError();
+        BeautyLogger.log("eglCreateContext result=" + eglContext
+                + " error=0x" + Integer.toHexString(eglErr));
+
+        if (eglContext == EGL10.EGL_NO_CONTEXT) {
+            BeautyLogger.error("eglCreateContext FAILED — EGL_NO_CONTEXT returned"
+                    + " | eglError=0x" + Integer.toHexString(eglErr));
+        }
+
         int[] pbufAttribs = {EGL10.EGL_WIDTH, 1, EGL10.EGL_HEIGHT, 1, EGL10.EGL_NONE};
         eglSurface = egl.eglCreatePbufferSurface(eglDisplay, configs[0], pbufAttribs);
+
+        eglErr = egl.eglGetError();
+        BeautyLogger.log("eglCreatePbufferSurface result=" + eglSurface
+                + " error=0x" + Integer.toHexString(eglErr));
+
+        if (eglSurface == EGL10.EGL_NO_SURFACE) {
+            BeautyLogger.error("eglCreatePbufferSurface FAILED — EGL_NO_SURFACE returned"
+                    + " | eglError=0x" + Integer.toHexString(eglErr));
+        }
     }
 
     private void makeCurrent() {
         if (egl != null && eglDisplay != null && eglSurface != null && eglContext != null) {
-            egl.eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext);
+            boolean ok = egl.eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext);
+            int err = egl.eglGetError();
+            BeautyLogger.log("eglMakeCurrent ok=" + ok + " error=0x" + Integer.toHexString(err));
+            if (!ok) {
+                BeautyLogger.error("eglMakeCurrent FAILED | eglError=0x" + Integer.toHexString(err));
+            }
+        } else {
+            BeautyLogger.error("makeCurrent skipped — one or more EGL objects are null"
+                    + " | egl=" + egl + " display=" + eglDisplay
+                    + " surface=" + eglSurface + " context=" + eglContext);
         }
     }
 
@@ -367,6 +509,7 @@ public class FlutterRTCFaceUnityBeauty {
             if (eglContext != null) egl.eglDestroyContext(eglDisplay, eglContext);
             egl.eglTerminate(eglDisplay);
             egl = null;
+            BeautyLogger.log("EGL context released");
         }
     }
 }
